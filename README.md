@@ -1,39 +1,34 @@
 # Storage Analytics
 
-## Evaluación del costo de degradación de sistemas BESS bajo condiciones reales de operación en Chile
+Dashboard tecnico desarrollado como herramienta de apoyo a la Actividad de Graduacion del Magister en Ingenieria de la Energia UC.
 
-Este proyecto corresponde a la Actividad de Graduación del Magíster en Ingeniería de la Energía.
-### Objetivo
+## Caso de estudio
 
-Determinar el costo técnico y económico asociado a la degradación de sistemas de almacenamiento mediante baterías (BESS) operando junto a plantas fotovoltaicas utility-scale bajo condiciones reales del Sistema Eléctrico Nacional de Chile.
+CEME1 FV + DUNE BESS.
 
-### Metodología
+## Funciones actuales
 
-- Modelación fotovoltaica mediante SAM.
-- Datos meteorológicos Explorador Solar de Chile (TMY).
-- Datos históricos del Coordinador Eléctrico Nacional.
-- Enfoque de operación Price-Taker.
-- Evaluación de estrategias de recuperación de curtailment y arbitraje energético.
-- Cuantificación de degradación y costo de desgaste.
+- Recurso solar TMY Explorador Solar y NASA POWER 2025.
+- Modelacion FV CEME1 mediante SAM.
+- Arquitectura equivalente CEME1 en seis submodelos SAM SC01-SC06.
+- Comparacion operacional CEN/SEN 2025.
+- Reducciones CEN y precio marginal horario Miraje 220 kV.
+- Clipping FV estimado desde series DC/AC y capacidad maxima de conversion AC.
+- Reporte PDF compacto del Bloque 1.
+- Modulo preparado para futura operacion y degradacion BESS.
 
-### Caso de estudio
+## Alcance metodologico
 
-- Planta FV representativa de María Elena.
-- Barra de precios Miraje 220.
-- Horizonte histórico de 3 a 5 años.
+Los JSON ubicados en `dashboard/data` son la fuente oficial para graficos, tablas, KPIs y reporte. El contraste con referencias operacionales del CEN constituye una verificacion de consistencia tecnico-operacional y no una validacion estricta del modelo fotovoltaico.
 
-### Plataforma web
+## Sitio
+
+La ruta raiz abre directamente el dashboard tecnico.
 
 https://storageanalytics.cl
 
-### Autor
+## Autor
 
 Arturo Rojas
 
-### Programa
-
-Magíster en Ingeniería de la Energía 2025/2027
-
----
-
-Storage Analytics © 2026
+Magister en Ingenieria de la Energia UC

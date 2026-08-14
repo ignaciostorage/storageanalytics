@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Storage Analytics | CEME1 FV + DUNE BESS</title>
-  <link rel="stylesheet" href="dashboard.css?v=20260627-0012" />
+  <link rel="stylesheet" href="dashboard.css?v=20260814-bloque1" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js" defer></script>
-  <script src="dashboard.js?v=20260627-0013" defer></script>
+  <script src="dashboard.js?v=20260814-bloque1" defer></script>
   <style id="dashboard-live-fixes">
     .sim-strip {
       padding: 11px 16px;
@@ -413,7 +413,7 @@
       </article>
       <article class="kpi-card soc-card">
         <p>BESS</p>
-        <div class="soc-ring"><span id="soc">--</span><small>%</small></div>
+        <div class="soc-ring unavailable"><span id="soc">N/D</span><small id="socUnit">B2</small></div>
       </article>
       <article class="kpi-card violet">
         <div class="kpi-icon">$</div>
@@ -440,17 +440,17 @@
         <div class="battery-wrap">
           <div class="battery-head"></div>
           <div class="battery"><div id="batteryFill"></div></div>
-          <strong>BESS<br><span id="socLarge">--</span></strong>
+          <strong>BESS<br><span id="socLarge">Sin datos</span></strong>
         </div>
         <ul class="kv-list">
           <li><span>Estado módulo</span><strong id="energiaAlmacenada">En desarrollo</strong></li>
           <li><span>Datos operación BESS</span><strong id="energiaNominal">No disponibles</strong></li>
-          <li><span>Carga configurada</span><strong id="pMaxCarga">--</strong></li>
-          <li><span>Descarga configurada</span><strong id="pMaxDescarga">--</strong></li>
-          <li><span>Eficiencia configurada</span><strong id="eficiencia">--</strong></li>
-          <li><span>Temperatura BESS</span><strong id="temperatura">--</strong></li>
-          <li><span>SOH</span><strong id="soh">--</strong></li>
-          <li><span>EFC acumulados</span><strong id="efc">--</strong></li>
+          <li><span>Carga configurada</span><strong id="pMaxCarga">No disponible</strong></li>
+          <li><span>Descarga configurada</span><strong id="pMaxDescarga">No disponible</strong></li>
+          <li><span>Eficiencia configurada</span><strong id="eficiencia">No disponible</strong></li>
+          <li><span>Temperatura BESS</span><strong id="temperatura">No disponible</strong></li>
+          <li><span>SOH</span><strong id="soh">No disponible</strong></li>
+          <li><span>EFC acumulados</span><strong id="efc">No disponible</strong></li>
         </ul>
       </article>
 
@@ -655,7 +655,7 @@
             </div>
             <p id="solarCompareMetricsInterpretation" class="solar-compare-metrics-interpretation"></p>
             <p class="solar-compare-metrics-note">
-              La comparación corresponde a un análisis exploratorio entre un Año Meteorológico Típico (TMY) y una serie correspondiente al año calendario 2025 (NASA POWER). Por lo tanto, las métricas describen diferencias entre ambas representaciones del recurso solar y no reemplazan mediciones de terreno.
+              La comparación corresponde a un análisis exploratorio entre un Año Meteorológico Típico (TMY) y una serie correspondiente al año calendario 2025 (NASA POWER). Por lo tanto, las métricas describen diferencias entre ambas representaciones del recurso solar y no constituyen validación contra terreno.
             </p>
           </div>
         </article>
@@ -1241,8 +1241,8 @@
               </article>
               <article class="sam-cen-flow-node future">
                 <span>BESS FUTURO</span>
-                <strong><b>--</b><small> MWh</small></strong>
-                <em>recuperación potencial</em>
+                <strong><b>Dato no disponible</b><small>Bloque 2</small></strong>
+                <em>recuperación potencial no calculada en Bloque 1</em>
               </article>
             </div>
           </section>
@@ -1468,6 +1468,42 @@
           </article>
         </div>
 
+        <section id="ceme1ArchitectureSection" class="ceme1-architecture card" aria-label="Arquitectura equivalente CEME1">
+          <div class="ceme1-arch-head">
+            <div>
+              <p class="section-kicker">ARQUITECTURA EQUIVALENTE CEME1</p>
+              <h3>Arquitectura equivalente CEME1 - seis submodelos SAM</h3>
+              <p id="ceme1ArchitectureNote">Cargando configuracion estructural desde dashboard/data/ceme1_architecture.json...</p>
+            </div>
+            <div class="arch-geometry" aria-label="Geometria Este Oeste">
+              <span>Este <b id="ceme1TiltEast">5°</b></span>
+              <strong aria-hidden="true">\ /</strong>
+              <span><b id="ceme1TiltWest">5°</b> Oeste</span>
+            </div>
+          </div>
+
+          <div class="arch-summary" id="ceme1ArchitectureSummary" aria-label="Totales arquitectura CEME1"></div>
+          <div class="arch-family-grid" id="ceme1ArchitectureFamilies" aria-label="Familias y submodelos SC01 a SC06"></div>
+          <div class="arch-profile-panel">
+            <div class="panel-head">
+              <div>
+                <h3>Perfil Este/Oeste - promedio horario anual</h3>
+                <small>Subarray Este, Subarray Oeste y Total AC - SAM NASA 2025</small>
+              </div>
+            </div>
+            <div class="plant-chart-box">
+              <canvas id="ceme1EastWestProfileChart"></canvas>
+            </div>
+            <p>
+              La configuración Este/Oeste desplaza la contribución relativa de los subarreglos hacia horas anteriores y posteriores al mediodía, ensanchando el perfil diario agregado de generación.
+              Debido a la baja inclinación de 5° y al promedio anual, el efecto puede manifestarse como un perfil ensanchado más que como dos máximos diferenciados.
+            </p>
+          </div>
+          <div class="arch-footnote">
+            Los seis submodelos constituyen una representacion equivalente de una unica planta CEME1 y sus resultados horarios se consolidan para obtener la generacion total modelada.
+          </div>
+        </section>
+
         <div class="plant-tabs card">
           <button class="plant-tab-btn plant-energy-mode-btn tmy active" type="button" data-plant-panel="energia" data-plant-energy-mode="tmy">
             SAM TMY Explorador Solar
@@ -1586,14 +1622,14 @@
           <article class="card plant-method-note">
             <h3>Criterio técnico</h3>
             <p id="clippingMethodNote">
-              Clipping estimado a partir de series DC/AC obtenidas mediante SAM y límites AC de inversores.
+              Clipping estimado a partir de las series DC/AC obtenidas mediante SAM y de la capacidad máxima de conversión AC de los inversores.
             </p>
           </article>
 
           <article class="card plant-method-note">
             <h3>Uso BESS</h3>
             <p id="clippingBessNote">
-              Clipping no es curtailment CEN y no se usa actualmente como energía de carga BESS.
+              Clipping no es Reducciones CEN y no se usa actualmente como energía de carga BESS.
             </p>
           </article>
         </section>

@@ -33,7 +33,7 @@ def clean_text(value) -> str:
     has_strict_validation = "validacion" in normalized and "estricta" in normalized
     has_indirect_validation = normalized.startswith("la validacion es indirecta")
     if has_strict_validation or has_indirect_validation:
-        return "El contraste constituye una verificación de consistencia técnico-operacional con referencias CEN."
+        return "El contraste con las referencias operacionales del CEN constituye una verificacion de consistencia y no una validacion estricta del modelo fotovoltaico."
     return text
 
 
@@ -94,8 +94,10 @@ def footer(canvas, doc):
 def build_story() -> list:
     validation = load_json("validacion_fv_ceme1_dashboard_bundle.json")
     clipping = load_json("clipping_sam_dashboard_bundle.json")
+    architecture = load_json("ceme1_architecture.json")
     kpis = validation["kpis"]
     meta = validation["metadata"]
+    arch_totals = architecture["totales"]
 
     story = [
         Paragraph("Reporte Bloque 1 - Storage Analytics", styles["TitleSA"]),
@@ -124,7 +126,37 @@ def build_story() -> list:
         ["Señal candidata BESS", kpis.get("senal_energia_candidata_bess", "Reducciones CEN"), "No se usa residuo SAM - CEN disponible como energía recuperable BESS."],
     ], [4 * cm, 4 * cm, 16 * cm]))
 
-    story.append(Paragraph("2. KPIs anuales oficiales", styles["SectionSA"]))
+    story.append(Paragraph("2. Arquitectura equivalente CEME1 - seis submodelos SAM", styles["SectionSA"]))
+    story.append(Paragraph(
+        architecture["metadata"].get(
+            "nota",
+            "Los seis submodelos constituyen una representacion equivalente de una unica planta CEME1 y sus resultados horarios se consolidan.",
+        ),
+        styles["BodySA"],
+    ))
+    arch_rows = [[
+        row.get("submodelo"),
+        f"Familia {row.get('familia')}",
+        row.get("orientacion"),
+        f"{fmt(row.get('azimut_grados'), 0)} / {fmt(row.get('inclinacion_grados'), 0)}",
+        f"{fmt(row.get('modulo_wp'), 0)} W",
+        fmt(row.get("strings"), 0),
+        fmt(row.get("inversores"), 0),
+        f"{fmt(row.get('potencia_dc_mwp'), 4)} MWdc",
+    ] for row in architecture.get("submodelos", [])]
+    arch_rows.append([
+        "Total",
+        "CEME1",
+        "Este/Oeste",
+        "90 / 270 y 5 grados",
+        f"{fmt(arch_totals.get('modulos_por_string'), 0)} mod/string",
+        fmt(arch_totals.get("strings"), 0),
+        fmt(arch_totals.get("inversores"), 0),
+        f"{fmt(arch_totals.get('potencia_dc_mwp'), 4)} MWdc",
+    ])
+    story.append(make_table(["SC", "Familia", "Orient.", "Az / inc", "Modulo", "Strings", "Inv.", "Pot. DC"], arch_rows, [2.2 * cm, 3 * cm, 2.3 * cm, 2.4 * cm, 2.6 * cm, 2.5 * cm, 1.8 * cm, 3.8 * cm], 6.8))
+
+    story.append(Paragraph("3. KPIs anuales oficiales", styles["SectionSA"]))
     story.append(make_table(["Señal", "Valor", "Unidad", "Cobertura", "Nota"], [
         ["SAM NASA 2025", fmt(kpis.get("energia_sam_nasa_2025_gwh"), 3), "GWh", "8760 h", "Simulación FV 2025 con meteorología NASA POWER."],
         ["SAM TMY Explorador Solar", fmt(kpis.get("energia_sam_tmy_gwh"), 3), "GWh", "8760 h", "Caso meteorológico típico para caracterización."],
@@ -137,11 +169,11 @@ def build_story() -> list:
         ["Residuo SAM NASA - CEN disponible", fmt(kpis.get("residuo_sam_nasa_vs_cen_disponible_gwh"), 3), "GWh", "8760 h", "Brecha técnico-operacional, no energía BESS directa."],
     ], [5.2 * cm, 3.1 * cm, 1.8 * cm, 2.7 * cm, 11.2 * cm]))
 
-    story.append(Paragraph("3. Métricas de consistencia técnico-operacional", styles["SectionSA"]))
+    story.append(Paragraph("4. Métricas de consistencia técnico-operacional", styles["SectionSA"]))
     story.append(make_table(["Comparación", "Cobertura", "Horas", "MBE MWh", "MAE MWh", "RMSE MWh", "nRMSE", "r", "Delta anual"], [[
-        row.get("comparacion", "--"),
-        row.get("cobertura_temporal", "--"),
-        f"{row.get('horas_cobertura', '--')} h",
+        row.get("comparacion", "Dato no disponible"),
+        row.get("cobertura_temporal", "Dato no disponible"),
+        f"{row.get('horas_cobertura', 'Dato no disponible')} h",
         fmt(row.get("mbe_mwh"), 2),
         fmt(row.get("mae_mwh"), 2),
         fmt(row.get("rmse_mwh"), 2),
@@ -150,21 +182,21 @@ def build_story() -> list:
         pct(row.get("delta_pct"), 2),
     ] for row in validation.get("metricas", [])], [6.0 * cm, 3.2 * cm, 2 * cm, 2.1 * cm, 2.1 * cm, 2.1 * cm, 2.1 * cm, 1.6 * cm, 2.4 * cm], 6.8))
 
-    story.append(Paragraph("4. Descomposición operacional del residuo", styles["SectionSA"]))
+    story.append(Paragraph("5. Descomposición operacional del residuo", styles["SectionSA"]))
     delta_rows = [[
-        row.get("eslabon", "--"),
-        row.get("comparacion", "--"),
+        row.get("eslabon", "Dato no disponible"),
+        row.get("comparacion", "Dato no disponible"),
         fmt(row.get("energia_gwh", row.get("energia_anual_gwh")), 3),
-        f"{row.get('horas_cobertura', '--')} h",
-        row.get("interpretacion", "--"),
+        f"{row.get('horas_cobertura', 'Dato no disponible')} h",
+        row.get("interpretacion", "Dato no disponible"),
     ] for row in validation.get("deltas", [])]
     delta_rows.append(["Control cierre", "Suma Delta E1+E2+E3 vs residuo total", fmt(kpis.get("control_deltas_error_gwh"), 6), "8736 h", "Error numérico cercano a cero."])
     story.append(make_table(["Eslabón", "Comparación", "Energía GWh", "Cobertura", "Interpretación"], delta_rows, [3 * cm, 6.2 * cm, 2.5 * cm, 2.2 * cm, 10.1 * cm]))
 
     story.append(PageBreak())
-    story.append(Paragraph("5. Tabla mensual de control", styles["SectionSA"]))
+    story.append(Paragraph("6. Tabla mensual de control", styles["SectionSA"]))
     story.append(make_table(["Mes", "SAM NASA", "Pronóstico CEN", "CEN disp.", "Real CEN", "Reducciones", "Delta E1", "Delta E2", "Delta E3", "Cob. común"], [[
-        row.get("mes_nombre", row.get("mes", "--")),
+        row.get("mes_nombre", row.get("mes", "Dato no disponible")),
         fmt(row.get("sam_nasa_2025_gwh"), 2),
         fmt(row.get("pronostico_centralizado_cen_gwh"), 2),
         fmt(row.get("cen_disponible_gwh"), 2),
@@ -173,23 +205,23 @@ def build_story() -> list:
         fmt(row.get("delta_1_sam_centralizado_gwh"), 2),
         fmt(row.get("delta_2_centralizado_disponible_gwh"), 2),
         fmt(row.get("delta_3_reducciones_gwh"), 2),
-        row.get("cobertura_t_common_forecast", "--"),
+        row.get("cobertura_t_common_forecast", "Dato no disponible"),
     ] for row in validation.get("mensual", [])], [1.4 * cm, 2.3 * cm, 2.5 * cm, 2.3 * cm, 2.2 * cm, 2.4 * cm, 2.0 * cm, 2.0 * cm, 2.0 * cm, 2.2 * cm], 6.5))
     story.append(Paragraph("Nota: julio usa 720 h comunes en T_COMMON_FORECAST; no se imputa el día 31-07-2025.", styles["NoteSA"]))
 
-    story.append(Paragraph("6. Clipping FV estimado DC/AC", styles["SectionSA"]))
+    story.append(Paragraph("7. Clipping FV estimado DC/AC", styles["SectionSA"]))
     story.append(make_table(["Caso", "Clipping MWh", "Clipping GWh", "% AC+clip", "P max MW", "Horas", "Método"], [[
         row.get("nombre_caso") or row.get("caso_sam"),
         fmt(row.get("energia_clipping_mwh"), 1),
         fmt(row.get("energia_clipping_gwh"), 3),
         pct(row.get("clipping_pct_vs_ac_mas_clip"), 3),
         fmt(row.get("potencia_clipping_max_mw"), 2),
-        row.get("horas_con_clipping", "--"),
-        row.get("metodo_clipping", "--"),
+        row.get("horas_con_clipping", "Dato no disponible"),
+        row.get("metodo_clipping", "Dato no disponible"),
     ] for row in clipping.get("kpis", [])], [4.8 * cm, 2.8 * cm, 2.6 * cm, 2.3 * cm, 2.3 * cm, 1.7 * cm, 5.5 * cm], 6.8))
-    story.append(Paragraph("El clipping corresponde a pérdida interna por limitación DC/AC estimada desde series SAM. No equivale a Reducciones CEN y no se usa actualmente como energía de carga BESS.", styles["BodySA"]))
+    story.append(Paragraph("Clipping estimado a partir de las series DC/AC obtenidas mediante SAM y de la capacidad maxima de conversion AC de los inversores. Clipping no equivale a Reducciones CEN y no se usa actualmente como energia de carga BESS.", styles["BodySA"]))
 
-    story.append(Paragraph("7. Decisión técnica para BESS", styles["SectionSA"]))
+    story.append(Paragraph("8. Decisión técnica para BESS", styles["SectionSA"]))
     clip_nasa = next((row.get("energia_clipping_gwh") for row in clipping.get("kpis", []) if row.get("caso_sam") == "SAM_NASA_2025"), None)
     story.append(make_table(["Elemento", "Valor", "Decisión"], [
         ["Energía candidata", "Reducciones CEN", "Señal operacional observada y valorizable con precio marginal horario Miraje 220 kV."],
@@ -198,10 +230,10 @@ def build_story() -> list:
         ["Operación BESS", "Pendiente", "Requiere JSON oficial de despacho, SOC, carga, descarga, eficiencia y degradación."],
     ], [5 * cm, 4 * cm, 15 * cm]))
 
-    story.append(Paragraph("8. Limitaciones", styles["SectionSA"]))
+    story.append(Paragraph("9. Limitaciones", styles["SectionSA"]))
     story.append(make_table(["Limitación metodológica"], [[clean_text(item)] for item in validation.get("limitaciones", [])], [24 * cm]))
 
-    story.append(Paragraph("9. Cierre", styles["SectionSA"]))
+    story.append(Paragraph("10. Cierre", styles["SectionSA"]))
     story.append(Paragraph(
         f"La cadena Delta E1 ({fmt(kpis.get('delta_1_sam_centralizado_gwh'), 3)} GWh), Delta E2 ({fmt(kpis.get('delta_2_centralizado_disponible_gwh'), 3)} GWh) "
         f"y Delta E3 ({fmt(kpis.get('delta_3_reducciones_gwh'), 3)} GWh) cierra el residuo total con error {fmt(kpis.get('control_deltas_error_gwh'), 6)} GWh. "

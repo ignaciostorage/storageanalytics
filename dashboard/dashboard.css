@@ -31,6 +31,10 @@ body {
   overflow-x: hidden;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   display: flex;
 }
@@ -405,6 +409,10 @@ body {
   height: 28px !important;
 }
 
+.kpi-card canvas[id^="spark"] {
+  display: none !important;
+}
+
 .yellow {
   color: var(--yellow);
 }
@@ -459,6 +467,19 @@ body {
 .soc-ring small {
   font-size: 13px;
   margin-left: 2px;
+}
+
+.soc-ring.unavailable {
+  flex-direction: column;
+  gap: 2px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.soc-ring.unavailable small {
+  margin-left: 0;
+  font-size: 10px;
+  color: #b9cce3;
 }
 
 .grid-main {
@@ -620,6 +641,11 @@ body {
   margin-top: 4px;
 }
 
+#socLarge {
+  font-size: 20px;
+  line-height: 1.05;
+}
+
 .kv-list {
   list-style: none;
 }
@@ -640,6 +666,21 @@ body {
 .kv-list strong {
   color: white;
   font-weight: 600;
+}
+
+.bess-state .kv-list li {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  padding: 5px 0;
+}
+
+.bess-state .kv-list strong {
+  max-width: none;
+  text-align: left;
+  overflow-wrap: normal;
+  font-size: 11px;
+  line-height: 1.15;
 }
 
 .large-kv li {
@@ -663,6 +704,11 @@ body {
 
 .strategy-table-card {
   padding: 12px;
+  min-width: 0;
+}
+
+.grid-bottom > .recommendation {
+  min-width: 0;
 }
 
 .table-scroll {
@@ -2763,6 +2809,214 @@ tbody tr.highlight {
   gap: 14px;
 }
 
+.ceme1-architecture {
+  margin: 12px 0;
+  padding: 16px;
+  border-color: rgba(49, 183, 255, 0.24);
+  background:
+    linear-gradient(180deg, rgba(8, 27, 49, 0.95), rgba(4, 16, 30, 0.98)),
+    radial-gradient(circle at 88% 20%, rgba(49, 183, 255, 0.09), transparent 32%);
+}
+
+.ceme1-arch-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 16px;
+  align-items: stretch;
+  margin-bottom: 14px;
+}
+
+.ceme1-arch-head h3 {
+  margin: 3px 0 7px;
+  color: #ffffff;
+  font-size: 20px;
+}
+
+.ceme1-arch-head p {
+  color: #c9d9ec;
+  line-height: 1.45;
+}
+
+.arch-geometry {
+  display: grid;
+  grid-template-columns: 1fr 56px 1fr;
+  gap: 8px;
+  align-items: center;
+  min-height: 94px;
+  padding: 12px;
+  border: 1px solid rgba(94, 168, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(2, 12, 24, 0.48);
+}
+
+.arch-geometry span {
+  color: #dcecff;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.arch-geometry b {
+  display: block;
+  margin-bottom: 4px;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.arch-geometry strong {
+  color: #31b7ff;
+  font-size: 38px;
+  line-height: 1;
+  text-align: center;
+}
+
+.arch-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(110px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.arch-summary-item {
+  min-height: 70px;
+  padding: 10px 11px;
+  border: 1px solid rgba(94, 168, 255, 0.2);
+  border-radius: 7px;
+  background: rgba(2, 12, 24, 0.52);
+}
+
+.arch-summary-item span {
+  display: block;
+  color: #94b9dc;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.arch-summary-item strong {
+  display: block;
+  margin-top: 6px;
+  color: #ffffff;
+  font-size: 21px;
+  line-height: 1;
+}
+
+.arch-family-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.arch-family {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(94, 168, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(3, 16, 30, 0.58);
+}
+
+.arch-family h4 {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.arch-family h4 small {
+  color: #8fc9ff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.arch-sc-list {
+  display: grid;
+  gap: 8px;
+}
+
+.arch-sc-card {
+  padding: 10px;
+  border: 1px solid rgba(94, 168, 255, 0.18);
+  border-left: 3px solid #76ff45;
+  border-radius: 7px;
+  background: rgba(7, 24, 44, 0.8);
+}
+
+.arch-sc-card.orientation-west {
+  border-left-color: #ff8a00;
+}
+
+.arch-sc-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.arch-sc-title strong {
+  color: #ffffff;
+  font-size: 16px;
+}
+
+.arch-sc-title span {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: #76ff45;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.arch-sc-card.orientation-west .arch-sc-title span {
+  color: #ffb15c;
+}
+
+.arch-sc-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  color: #dbe9fa;
+  font-size: 11px;
+}
+
+.arch-sc-meta span {
+  color: #8fb4d8;
+}
+
+.arch-profile-panel {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(94, 168, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(3, 16, 30, 0.58);
+}
+
+.arch-profile-panel .panel-head {
+  margin-bottom: 10px;
+}
+
+.arch-profile-panel p {
+  margin: 10px 0 0;
+  color: #c9d9ec;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.arch-footnote {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(49, 183, 255, 0.2);
+  border-left: 3px solid #31b7ff;
+  border-radius: 7px;
+  color: #d7e8ff;
+  background: rgba(6, 27, 49, 0.72);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .report-view-head {
   display: flex;
   justify-content: space-between;
@@ -3383,6 +3637,15 @@ tbody tr.highlight {
 }
 
 @media (max-width: 900px) {
+  .ceme1-arch-head,
+  .arch-family-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .arch-summary {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+
   .plant-head-grid { grid-template-columns: 1fr; }
   .plant-scada-strip { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
   .plant-energy-chart-grid { grid-template-columns: 1fr; }
@@ -3398,6 +3661,23 @@ tbody tr.highlight {
 }
 
 @media (max-width: 760px) {
+  .ceme1-architecture {
+    padding: 12px;
+  }
+
+  .arch-summary,
+  .arch-sc-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .arch-geometry {
+    grid-template-columns: 1fr;
+  }
+
+  .arch-geometry strong {
+    transform: rotate(90deg);
+  }
+
   .plant-panel-head {
     flex-direction: column;
     align-items: flex-start;

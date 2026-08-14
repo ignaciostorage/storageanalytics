@@ -456,10 +456,10 @@ function update(){
 
   set("simHour", hh); set("simDate", dd); set("sliderBubble", hh);
   set("ghi", n(d.meteo_ghi_wm2 ?? d.ghi)); set("fv", n(d.sam_p_ac_mw ?? d.fv,1)); set("curtailment", n(d.reducciones_cen_mwh,1)); set("inyeccion", n(d.generacion_real_cen_mwh,1));
-  set("carga", n(d.cen_disponible_mwh,1)); set("descarga", n(d.residuo_sam_menos_cen_disponible_mwh,1)); set("soc", "--"); set("pmg", n(d.precio_spot_usd_mwh,1));
-  set("socLarge", "--"); set("energiaAlmacenada", "En desarrollo");
-  set("energiaNominal", "No disponibles"); set("pMaxCarga", "--"); set("pMaxDescarga", "--"); set("eficiencia", "--");
-  set("temperatura", "--"); set("soh", "--"); set("sohActual", "No disponible"); set("efc", "--");
+  set("carga", n(d.cen_disponible_mwh,1)); set("descarga", n(d.residuo_sam_menos_cen_disponible_mwh,1)); set("soc", "N/D"); set("socUnit", "B2"); set("pmg", n(d.precio_spot_usd_mwh,1));
+  set("socLarge", "Sin datos"); set("energiaAlmacenada", "En desarrollo");
+  set("energiaNominal", "No disponibles"); set("pMaxCarga", "No disponible"); set("pMaxDescarga", "No disponible"); set("eficiencia", "No disponible");
+  set("temperatura", "No disponible"); set("soh", "No disponible"); set("sohActual", "No disponible"); set("efc", "No disponible");
   set("perdidaCapacidad", "No disponible"); set("costoDeg2", "No calculado"); set("beneficio", "Módulo en desarrollo");
 
   set("ghiSub", `Máx. día: ${n(max(dayRows,"meteo_ghi_wm2"))} W/m²`);
@@ -510,7 +510,7 @@ function buildCharts(){
     return;
   }
 
-  charts.operation = lineChart("operationChart", ["Generación FV SAM (AC)","CEN disponible","Generación real CEN","Reducciones CEN (curtailment)","Precio marginal horario"], ["#76ff45","#ffd21f","#31b7ff","#ff8a00","#b46cff"], false);
+  charts.operation = lineChart("operationChart", ["Generación FV SAM (AC)","CEN disponible","Generación real CEN","Reducciones CEN","Precio marginal"], ["#76ff45","#ffd21f","#31b7ff","#ff8a00","#b46cff"], false);
   charts.radiation = lineChart("radiationChart", ["GHI","DNI","DHI"], ["#ffd21f","#ff8a00","#31b7ff"], false);
   charts.soc = lineChart("socChart", ["Residuo SAM − CEN disponible"], ["#ff8a00"], false);
   charts.pmg = lineChart("pmgChart", ["Precio marginal horario"], ["#9b78ff"], false);
@@ -661,7 +661,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
 
   function formatNumber(value, decimals = 2) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) {
-      return "--";
+      return "Dato no disponible";
     }
 
     return Number(value).toLocaleString("es-CL", {
@@ -672,7 +672,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
 
   function formatInteger(value) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) {
-      return "--";
+      return "Dato no disponible";
     }
 
     return Number(value).toLocaleString("es-CL", {
@@ -859,7 +859,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         ["DHI PROMEDIO DIARIA", "Difusa horizontal"],
         ["GHI ANUAL", "Recurso global anual"],
         ["TEMPERATURA MEDIA", mode === "nasa" ? "Promedio NASA POWER 2025" : "Promedio anual TMY"],
-        ["VIENTO MEDIO", mode === "nasa" ? "Dato no disponible si no existe en JSON" : "Promedio anual TMY"],
+        ["VIENTO MEDIO", mode === "nasa" ? "Promedio anual NASA POWER 2025" : "Promedio anual TMY"],
       ];
 
     document.querySelectorAll("#solarKpiCards .kpi-card").forEach((card, index) => {
@@ -1049,6 +1049,11 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     return valid.length ? valid.reduce((acc, value) => acc + value, 0) : null;
   }
 
+  function solarFirstNumber(row, keys) {
+    const field = findFirstField(row, keys);
+    return solarNumeric(field.value);
+  }
+
   function normalizeSolarHourlyRowV2(row) {
     return {
       ...row,
@@ -1138,19 +1143,44 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     const horario = Array.isArray(bundle?.horario)
       ? bundle.horario.map(normalizeSolarHourlyRowV2)
       : [];
-    const mensual = Array.isArray(bundle?.mensual) && bundle.mensual.length
+    const rawMensual = Array.isArray(bundle?.mensual) && bundle.mensual.length
       ? bundle.mensual
       : buildSolarMonthlyFromHourlyV2(horario);
-    const perfil = Array.isArray(bundle?.perfil_horario) && bundle.perfil_horario.length
+    const mensual = rawMensual.map((row) => ({
+      ...row,
+      mes: solarNumeric(row.mes),
+      mes_corto: row.mes_corto || monthName(row.mes),
+      ghi_kwh_m2_dia_promedio: solarFirstNumber(row, ["ghi_kwh_m2_dia_promedio", "ghi_promedio_diario_kwh_m2_dia"]),
+      dni_kwh_m2_dia_promedio: solarFirstNumber(row, ["dni_kwh_m2_dia_promedio", "dni_promedio_diario_kwh_m2_dia"]),
+      dhi_kwh_m2_dia_promedio: solarFirstNumber(row, ["dhi_kwh_m2_dia_promedio", "dhi_promedio_diario_kwh_m2_dia"]),
+      ghi_kwh_m2_mes: solarFirstNumber(row, ["ghi_kwh_m2_mes", "ghi_kwh_m2"]),
+      dni_kwh_m2_mes: solarFirstNumber(row, ["dni_kwh_m2_mes", "dni_kwh_m2"]),
+      dhi_kwh_m2_mes: solarFirstNumber(row, ["dhi_kwh_m2_mes", "dhi_kwh_m2"]),
+      temperatura_media_c: solarFirstNumber(row, ["temperatura_media_c", "temp_amb_prom_c", "temperatura_promedio_c"]),
+      temperatura_max_c: solarFirstNumber(row, ["temperatura_max_c", "temp_amb_max_c"]),
+      temperatura_min_c: solarFirstNumber(row, ["temperatura_min_c", "temp_amb_min_c"]),
+      viento_media_m_s: solarFirstNumber(row, ["viento_media_m_s", "viento_media_ms", "viento_prom_ms", "wind_prom_m_s"]),
+      viento_max_m_s: solarFirstNumber(row, ["viento_max_m_s", "viento_max_ms", "wind_max_m_s"]),
+    }));
+    const rawPerfil = Array.isArray(bundle?.perfil_horario) && bundle.perfil_horario.length
       ? bundle.perfil_horario
       : buildSolarProfileFromHourlyV2(horario);
+    const perfil = rawPerfil.map((row) => ({
+      ...row,
+      hora: solarNumeric(row.hora),
+      hora_label: row.hora_label || `${String(row.hora).padStart(2, "0")}:00`,
+      ghi_promedio_w_m2: solarFirstNumber(row, ["ghi_promedio_w_m2", "ghi_promedio_wm2", "ghi_prom_wm2", "ghi_wm2", "ghi"]),
+      dni_promedio_w_m2: solarFirstNumber(row, ["dni_promedio_w_m2", "dni_promedio_wm2", "dni_prom_wm2", "dni_wm2", "dni"]),
+      dhi_promedio_w_m2: solarFirstNumber(row, ["dhi_promedio_w_m2", "dhi_promedio_wm2", "dhi_prom_wm2", "dhi_wm2", "dhi"]),
+    }));
     const kpis = bundle?.kpis || {};
 
     return {
       metadata: bundle?.metadata || {},
       kpis: {
         ...kpis,
-        viento_media_anual_m_s: pick(kpis, ["viento_media_anual_m_s", "viento_media_anual_ms"]),
+        temperatura_media_anual_c: solarFirstNumber(kpis, ["temperatura_media_anual_c", "temp_amb_prom_c"]),
+        viento_media_anual_m_s: solarFirstNumber(kpis, ["viento_media_anual_m_s", "viento_media_anual_ms", "wind_prom_m_s"]),
       },
       mensual,
       perfil_horario: perfil,
@@ -1386,16 +1416,19 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     if (!canvas || !Array.isArray(mensual)) return;
 
     const labels = mensual.map((row) => row.mes_corto);
+    const datasets = [
+      { label: "Temperatura media", key: "temperatura_media_c", color: "#ff6b6b" },
+      { label: "Temperatura maxima", key: "temperatura_max_c", color: "#ffb3b3" },
+      { label: "Temperatura minima", key: "temperatura_min_c", color: "#9ec5ff" },
+    ]
+      .filter((item) => mensual.some((row) => solarNumeric(row[item.key]) !== null))
+      .map((item) => lineDataset(item.label, mensual.map((row) => row[item.key]), item.color));
 
     solarState.charts.temperatura = new Chart(canvas, {
       type: "line",
       data: {
         labels,
-        datasets: [
-          lineDataset("Temperatura media", mensual.map((row) => row.temperatura_media_c), "#ff6b6b"),
-          lineDataset("Temperatura máxima", mensual.map((row) => row.temperatura_max_c), "#ffb3b3"),
-          lineDataset("Temperatura mínima", mensual.map((row) => row.temperatura_min_c), "#9ec5ff"),
-        ],
+        datasets,
       },
       options: chartBaseOptions({
         scales: {
@@ -1422,15 +1455,23 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     if (!canvas || !Array.isArray(mensual)) return;
 
     const labels = mensual.map((row) => row.mes_corto);
+    const datasets = [];
+    if (mensual.some((row) => solarNumeric(row.viento_media_m_s) !== null)) {
+      datasets.push(barDataset("Velocidad media", mensual.map((row) => row.viento_media_m_s), "#4ade80"));
+    }
+    if (mensual.some((row) => solarNumeric(row.viento_max_m_s) !== null)) {
+      datasets.push(lineDataset("Velocidad maxima", mensual.map((row) => row.viento_max_m_s), "#e5e7eb"));
+    }
+    const subtitle = canvas.closest(".solar-chart-card")?.querySelector(".panel-head small");
+    if (subtitle) {
+      subtitle.textContent = datasets.length > 1 ? "Promedio mensual y maxima mensual" : "Promedio mensual";
+    }
 
     solarState.charts.viento = new Chart(canvas, {
       type: "bar",
       data: {
         labels,
-        datasets: [
-          barDataset("Velocidad media", mensual.map((row) => row.viento_media_m_s), "#4ade80"),
-          lineDataset("Velocidad máxima", mensual.map((row) => row.viento_max_m_s), "#e5e7eb"),
-        ],
+        datasets,
       },
       options: chartBaseOptions({
         scales: {
@@ -3671,8 +3712,8 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       data: {
         labels,
         datasets: [
-          barDataset("Reducciones CEN (curtailment)", tmy.map((row) => row.cen_curtailment_prom_mwh), orange, "y"),
-          { ...lineDataset("Precio promedio", tmy.map((row) => row.precio_prom_usd_mwh), purple, "y1"), type: "line" },
+          barDataset("Reducciones CEN", tmy.map((row) => row.cen_curtailment_prom_mwh), orange, "y"),
+          { ...lineDataset("Precio marginal", tmy.map((row) => row.precio_prom_usd_mwh), purple, "y1"), type: "line" },
         ],
       },
       options: chartBaseOptions({
@@ -3682,7 +3723,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
             grid: { color: "rgba(140, 170, 210, 0.1)" },
           },
           y: {
-            title: { display: true, text: "MWh promedio", color: "#b8cbe3" },
+            title: { display: true, text: "Reducciones CEN [MWh/h]", color: "#b8cbe3" },
             ticks: { color: "#b8cbe3" },
             grid: { color: "rgba(140, 170, 210, 0.14)" },
           },
@@ -4940,6 +4981,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
   const REPORT_COMPARE_METRICS_URL = "data/comparativa_recurso_solar_tmy_vs_nasa_metricas_dashboard.json";
   const REPORT_CLIPPING_URL = "data/clipping_sam_dashboard_bundle.json";
   const REPORT_CLIPPING_FALLBACK = "data/clipping_sam_dashboard_lite.json";
+  const ARCHITECTURE_URL = "data/ceme1_architecture.json";
 
   const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
   const SOURCE_META = {
@@ -4981,7 +5023,9 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     scadaRows: null,
     reportCompareMetricsBundle: null,
     reportClippingBundle: null,
+    architectureBundle: null,
     plantCharts: {},
+    architectureCharts: {},
     clippingCharts: {},
     reportCharts: {},
     currentPlantMode: "tmy",
@@ -4994,12 +5038,12 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
   function n(value) { const out = Number(value); return Number.isFinite(out) ? out : null; }
   function fmt(value, decimals = 1) {
     const num = n(value);
-    if (num === null) return "--";
+    if (num === null) return "Dato no disponible";
     return num.toLocaleString("es-CL", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
   function fmtInt(value) {
     const num = n(value);
-    if (num === null) return "--";
+    if (num === null) return "Dato no disponible";
     return num.toLocaleString("es-CL", { maximumFractionDigits: 0 });
   }
   function pct(value, decimals = 1) { return fmt(value, decimals); }
@@ -5185,6 +5229,11 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     return state.reportClippingBundle;
   }
 
+  async function getArchitectureBundle() {
+    if (!state.architectureBundle) state.architectureBundle = await fetchJson(ARCHITECTURE_URL, null);
+    return state.architectureBundle;
+  }
+
   function rowsForCase(rows, mode) {
     const meta = SOURCE_META[mode];
     return (Array.isArray(rows) ? rows : []).filter((row) => meta.pattern.test(`${row.caso_sam || ""} ${row.nombre_caso || ""} ${row.fuente_meteorologica || ""}`));
@@ -5200,6 +5249,107 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       map.set(key, (map.get(key) || 0) + (n(row.energia_ac_neta_gwh) || 0));
     });
     return Array.from(map.entries()).map(([orientacion, energia_ac_neta_gwh]) => ({ orientacion, energia_ac_neta_gwh }));
+  }
+
+  function renderCeme1Architecture(architecture) {
+    const section = byId("ceme1ArchitectureSection");
+    if (!section || !architecture) return;
+
+    const submodels = Array.isArray(architecture.submodelos) ? architecture.submodelos : [];
+    const families = Array.isArray(architecture.familias) && architecture.familias.length
+      ? architecture.familias
+      : Array.from(new Set(submodels.map((row) => row.familia))).map((familia) => ({
+        familia,
+        submodelos: submodels.filter((row) => row.familia === familia).map((row) => row.submodelo),
+      }));
+    const totals = architecture.totales || {};
+    const geometry = architecture.geometria || {};
+
+    setText("ceme1ArchitectureNote", architecture.metadata?.nota || "Configuracion estructural equivalente CEME1 cargada desde JSON.");
+    setText("ceme1TiltEast", `${fmt(geometry.inclinacion_grados, 0)}°`);
+    setText("ceme1TiltWest", `${fmt(geometry.inclinacion_grados, 0)}°`);
+
+    setHtml("ceme1ArchitectureSummary", [
+      ["Submodelos SAM", fmtInt(totals.submodelos || submodels.length)],
+      ["Strings", fmtInt(totals.strings)],
+      ["Inversores", fmtInt(totals.inversores)],
+      ["Potencia DC", `${fmt(totals.potencia_dc_mwp, 4)} MWdc`],
+      ["Modulos/string", fmtInt(totals.modulos_por_string)],
+    ].map(([label, value]) => `
+      <div class="arch-summary-item">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+      </div>
+    `).join(""));
+
+    setHtml("ceme1ArchitectureFamilies", families.map((family) => {
+      const rows = submodels.filter((row) => (family.submodelos || []).includes(row.submodelo));
+      return `
+        <article class="arch-family">
+          <h4>Familia ${escapeHtml(family.familia)} <small>${fmtInt(family.modulo_wp || rows[0]?.modulo_wp)} Wp</small></h4>
+          <div class="arch-sc-list">
+            ${rows.map((row) => {
+              const orientation = String(row.orientacion || "").toLowerCase();
+              return `
+                <div class="arch-sc-card ${/oeste|west/.test(orientation) ? "orientation-west" : "orientation-east"}">
+                  <div class="arch-sc-title">
+                    <strong>${escapeHtml(row.submodelo)}</strong>
+                    <span>${escapeHtml(row.orientacion)}</span>
+                  </div>
+                  <div class="arch-sc-meta">
+                    <div><span>Azimut</span><br>${fmt(row.azimut_grados, 0)}°</div>
+                    <div><span>Inclinacion</span><br>${fmt(row.inclinacion_grados, 0)}°</div>
+                    <div><span>Modulo</span><br>${fmtInt(row.modulo_wp)} W</div>
+                    <div><span>Strings</span><br>${fmtInt(row.strings)}</div>
+                    <div><span>Inversores</span><br>${fmtInt(row.inversores)}</div>
+                    <div><span>Potencia DC</span><br>${fmt(row.potencia_dc_mwp, 4)} MWdc</div>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </article>
+      `;
+    }).join(""));
+  }
+
+  function renderCeme1EastWestProfile(profile) {
+    const canvas = byId("ceme1EastWestProfileChart");
+    if (!canvas || typeof Chart === "undefined") return;
+    destroyCharts(state.architectureCharts);
+    const rows = (Array.isArray(profile?.perfil_horario_nasa_2025) && profile.perfil_horario_nasa_2025.length
+      ? profile.perfil_horario_nasa_2025
+      : (Array.isArray(profile?.perfil_horario) ? profile.perfil_horario : []))
+      .filter((row) => /nasa|2025/i.test(`${row.caso_sam || ""} ${row.fuente_meteorologica || ""}`) || profile?.perfil_horario_nasa_2025)
+      .sort((a, b) => (n(a.hora) || 0) - (n(b.hora) || 0));
+    if (!rows.length) return;
+    state.architectureCharts.eastWest = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: rows.map((row) => row.hora_label || `${String(row.hora).padStart(2, "0")}:00`),
+        datasets: [
+          lineDs("Subarray Este", rows.map((row) => row.este_mwh), cssVar("--green", "#76ff45")),
+          lineDs("Subarray Oeste", rows.map((row) => row.oeste_mwh), cssVar("--orange", "#ff8a00")),
+          { ...lineDs("Total AC", rows.map((row) => row.total_mwh), cssVar("--cyan", "#31b7ff")), borderWidth: 3 },
+        ],
+      },
+      options: baseChartOptions({
+        scales: {
+          y: { title: { display: true, text: "MWh promedio por hora", color: "#b8cbe3" }, ticks: { color: "#b8cbe3" }, grid: { color: "rgba(140,170,210,.14)" }, beginAtZero: true },
+        },
+      }),
+    });
+  }
+
+  async function renderCeme1ArchitectureFromJson() {
+    try {
+      const [architecture, profile] = await Promise.all([getArchitectureBundle(), getProfileBundle()]);
+      renderCeme1Architecture(architecture);
+      renderCeme1EastWestProfile(profile);
+    } catch (error) {
+      console.warn("No se pudo cargar ceme1_architecture.json:", error);
+      setText("ceme1ArchitectureNote", "Dato no disponible: no se pudo cargar dashboard/data/ceme1_architecture.json.");
+    }
   }
 
   function setPlantLabels(labels) {
@@ -5415,6 +5565,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
   async function renderPlantEnergyViewPatched(mode = state.currentPlantMode || "tmy") {
     const nextMode = SOURCE_META[mode] ? mode : "tmy";
     state.currentPlantMode = nextMode;
+    renderCeme1ArchitectureFromJson();
     setPlantModeButton(nextMode);
     setPlantHeader(nextMode);
     setText("plantEnergyStatus", "CARGANDO");
@@ -5440,15 +5591,14 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
 
   function renderClippingKpis(bundle) {
     const k = rowForCase(bundle?.kpis, "nasa");
-    const meta = bundle?.metadata || {};
     setText("clippingStatus", "DATA OK");
     setText("clippingEnergy", fmt(k.energia_clipping_mwh, 1));
     setText("clippingPct", fmt(k.clipping_pct_vs_ac_mas_clip ?? k.clipping_pct_vs_dc, 2));
     setText("clippingPower", fmt(k.potencia_clipping_max_mw, 1));
     setText("clippingHours", fmtInt(k.horas_con_clipping));
     setText("clippingMethod", k.metodo_clipping || "estimado_desde_dc_ac_limit");
-    setText("clippingMethodNote", meta.criterio || "Clipping estimado a partir de series DC/AC obtenidas mediante SAM y limites AC de inversores.");
-    setText("clippingBessNote", meta.uso_bess || "Clipping no es curtailment CEN y no se usa actualmente como energia de carga BESS.");
+    setText("clippingMethodNote", "Clipping estimado a partir de las series DC/AC obtenidas mediante SAM y de la capacidad maxima de conversion AC de los inversores.");
+    setText("clippingBessNote", "Clipping no es Reducciones CEN y no se usa actualmente como energia de carga BESS.");
   }
 
   function renderClippingCharts(bundle) {
@@ -5573,24 +5723,13 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       if (!caseFilter.test(`${r.caso_sam || ""} ${r.fuente_meteorologica || ""}`)) return;
       const dt = new Date(String(r.timestamp).replace(" ", "T"));
       const h = Number.isFinite(dt.getHours()) ? dt.getHours() : Number(String(r.timestamp).slice(11, 13));
-      const ghi = n(r.meteo_ghi_wm2);
-      const samEnergy = n(r.sam_e_ac_mwh);
-      const isSolarHour = ghi !== null
-        ? ghi > 0
-        : samEnergy !== null
-          ? samEnergy > 0
-          : h >= 7 && h <= 19;
       if (!map.has(h)) map.set(h, []);
-      map.get(h).push({
-        ...r,
-        reducciones_cen_plot_mwh: isSolarHour ? n(r.reducciones_cen_mwh) || 0 : 0,
-      });
+      map.get(h).push(r);
     });
     return Array.from({ length: 24 }, (_, h) => ({
       hora: h,
       hora_label: `${String(h).padStart(2, "0")}:00`,
       reducciones_cen_mwh: avg(map.get(h) || [], "reducciones_cen_mwh"),
-      reducciones_cen_plot_mwh: avg(map.get(h) || [], "reducciones_cen_plot_mwh"),
       precio_spot_usd_mwh: avgAny(map.get(h) || [], ["precio_marginal_horario_usd_mwh", "precio_spot_usd_mwh", "precio_marginal_usd_mwh"]),
       sam_e_ac_mwh: avg(map.get(h) || [], "sam_e_ac_mwh"),
       meteo_ghi_wm2: avg(map.get(h) || [], "meteo_ghi_wm2"),
@@ -5598,7 +5737,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
   }
   function reportSection(num, title, body, className = "") {
     const autoClass = num === "1." ? "" : "sa-page-break";
-    const specialClass = num === "9." ? "sa-conclusion-section" : num === "A." ? "sa-annex-section" : "";
+    const specialClass = num === "10." ? "sa-conclusion-section" : num === "A." ? "sa-annex-section" : "";
     const classes = ["sa-report-section", autoClass, specialClass, className].filter(Boolean).join(" ");
     return `<section class="${classes}"><h2><span>${num}</span>${title}</h2><div class="sa-section-body">${body}</div></section>`;
   }
@@ -5699,7 +5838,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       <p><b>TMY Explorador Solar vs NASA POWER 2025</b></p>
       ${table(["Variable", "Δ anual (%)", "Sesgo (%)", "MBE", "MAE", "RMSE", "nRMSE (%)", "Correlación r", "R²"], tableRows, "meteo-metrics")}
       <p class="sa-report-note"><b>Interpretación automática:</b> ${buildReportCompareInterpretation(rows)}</p>
-      <p class="sa-report-note">La comparación corresponde a un análisis exploratorio entre un Año Meteorológico Típico (TMY) y una serie histórica correspondiente al año 2025 (NASA POWER). Estas métricas describen diferencias entre ambas representaciones del recurso solar y no reemplazan mediciones de terreno.</p>
+      <p class="sa-report-note">La comparación corresponde a un análisis exploratorio entre un Año Meteorológico Típico (TMY) y una serie histórica correspondiente al año 2025 (NASA POWER). Estas métricas describen diferencias entre ambas representaciones del recurso solar y no constituyen validación contra terreno.</p>
     `;
   }
   function reportRowsForCase(rows, regex = /nasa|2025/i) {
@@ -5735,7 +5874,38 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     `;
   }
 
-  function buildReportHtml(validation, compareMetricsBundle = null, clippingBundle = null) {
+  function buildReportArchitectureSection(architecture) {
+    const submodels = Array.isArray(architecture?.submodelos) ? architecture.submodelos : [];
+    if (!architecture || !submodels.length) return reportUnavailablePage("Arquitectura CEME1 no disponible. Revise dashboard/data/ceme1_architecture.json.");
+    const totals = architecture.totales || {};
+    const rows = submodels.map((row) => [
+      `<b>${escapeHtml(row.submodelo)}</b>`,
+      `Familia ${escapeHtml(row.familia)}`,
+      escapeHtml(row.orientacion),
+      `${fmt(row.azimut_grados, 0)}° / ${fmt(row.inclinacion_grados, 0)}°`,
+      `${fmtInt(row.modulo_wp)} W`,
+      fmtInt(row.strings),
+      fmtInt(row.inversores),
+      `${fmt(row.potencia_dc_mwp, 4)} MWdc`,
+    ]);
+    rows.push([
+      "<b>Total</b>",
+      "CEME1",
+      "Este/Oeste",
+      "Azimut 90° / 270° - inclinacion 5°",
+      `${fmtInt(totals.modulos_por_string)} mod/string`,
+      `<b>${fmtInt(totals.strings)}</b>`,
+      `<b>${fmtInt(totals.inversores)}</b>`,
+      `<b>${fmt(totals.potencia_dc_mwp, 4)} MWdc</b>`,
+    ]);
+    return `
+      <p>${escapeHtml(architecture.metadata?.nota || "Los seis submodelos constituyen una representacion equivalente de una unica planta CEME1.")}</p>
+      <p class="sa-report-note">Geometria equivalente: Este 5° \\ / 5° Oeste. Los submodelos SC01-SC06 no representan seis plantas independientes.</p>
+      ${table(["SC", "Familia", "Orientacion", "Azimut / inclinacion", "Modulo", "Strings", "Inversores", "Potencia DC"], rows, "architecture")}
+    `;
+  }
+
+  function buildReportHtml(validation, compareMetricsBundle = null, clippingBundle = null, architectureBundle = null) {
     const k = validation.kpis || {};
     const fuentes = validation.fuentes_datos || [];
     const resumen = validation.resumen_anual || [];
@@ -5811,13 +5981,14 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         </header>
         ${reportSection("1.", "Indicadores ejecutivos principales", kpisHtml)}
         ${reportSection("2.", "Fuentes de datos y alcance metodológico", table(["Fuente", "Variable", "Uso en Bloque 1", "Observación crítica"], fuentesRows, "sources") + `<p class="sa-report-note"><b>Definición central:</b> CEN disponible = Generación real CEN + Reducciones CEN. El residuo SAM − CEN disponible no se interpreta como error puro del modelo FV, sino como discrepancia técnico-operacional frente a una referencia oficial construida con datos CEN.</p>`)}
-        ${reportSection("3.", "Resultados energéticos y evolución mensual", table(["Señal", "Energía [GWh]", "Cobertura", "Δ contextual [GWh]", "Interpretación"], resumenRows, "annual") + `<p class="sa-report-figure-title">Figura 1 — Comparación mensual: simulación SAM, pronóstico y operación CEN 2025</p><div class="sa-report-chart"><canvas id="saReportMonthlyChart"></canvas></div><p class="sa-report-note">Lectura: las series de ${fmtInt(horasFull)} h y el Pronóstico centralizado CEN de ${fmtInt(horasPronostico)} h se muestran con cobertura explícita. En julio el pronóstico sólo cubre 720 h por ausencia del 31-07-2025, sin imputación.</p>`)}
-        ${reportSection("4.", "Perfil horario — Arquitectura V invertida Este/Oeste", `<p>La configuración Este/Oeste desplaza la contribución relativa de los subarreglos hacia horas anteriores y posteriores al mediodía, ensanchando el perfil diario agregado de generación.</p><p class="sa-report-figure-title">Figura 2 — Perfil horario promedio anual SAM NASA 2025 (subarrays Este y Oeste)</p><div class="sa-report-chart"><canvas id="saReportEastWestChart"></canvas></div><p class="sa-report-note">La separación entre submodelos Este y Oeste permite evidenciar la arquitectura física V invertida de CEME1.</p>`)}
-        ${reportSection("5.", "Métricas de consistencia técnico-operacional", `<p>Las métricas comparan SAM NASA 2025, SAM TMY y Pronóstico centralizado CEN frente a CEN disponible, informando la cobertura de cada contraste. La comparación SAM NASA 2025 vs Generación real CEN se mantiene como auxiliar e ilustrativa.</p>${table(["Comparación", "MBE [MWh]", "MAE [MWh]", "RMSE [MWh]", "nRMSE [%]", "Correlación r", "Sesgo anual [%]"], metricRows, "metrics")}<p class="sa-report-figure-title">Figura 3 — nRMSE y correlación de Pearson por comparación</p><div class="sa-report-chart"><canvas id="saReportMetricsChart"></canvas></div>`)}
-        ${reportSection("6.", "Descomposición operacional del residuo", `<p>La brecha total entre SAM NASA 2025 y la Generación real CEN se descompone exclusivamente sobre las ${fmtInt(horasCommon)} h comunes con pronóstico.</p>${table(["Eslabón", "Fórmula", "Energía [GWh]", "Interpretación"], deltaRows, "deltas")}<p class="sa-report-note">Control algebraico: ΔE1 + ΔE2 + ΔE3 = Residuo total; error de cierre ${fmt(errorCierre, 6)} GWh.</p><p class="sa-report-figure-title">Figura 4 — Descomposición operacional del residuo SAM NASA 2025 − Generación real CEN</p><div class="sa-report-chart"><canvas id="saReportDeltasChart"></canvas></div>`)}
-        ${reportSection("7.", "Reducciones CEN y precio marginal horario — Señal candidata BESS", `<p>El perfil horario de las Reducciones CEN permite identificar energía candidata de carga para BESS y su relación con el precio marginal horario Miraje 220 kV. La energía efectivamente almacenada dependerá de potencia, capacidad, SOC, eficiencia y restricciones de operación.</p><p class="sa-report-figure-title">Figura 5 — Reducciones CEN promedio y precio marginal horario Miraje 220 kV (2025)</p><div class="sa-report-chart"><canvas id="saReportCurtailmentPriceChart"></canvas></div>`)}
-        ${reportSection("8.", "Limitaciones metodológicas del Bloque 1", `<ul class="sa-report-list">${limitationsRows}</ul>`)}
-        ${reportSection("9.", "Conclusión técnica y decisión para el Bloque 2", `<p>${conclusion}</p><div class="sa-report-decision"><b>DECISIÓN TÉCNICA — BLOQUE 1 CERRADO</b><ol><li>Usar SAM NASA 2025 como base de contraste operacional frente a CEN 2025.</li><li>Mantener SAM TMY Explorador Solar como referencia meteorológica típica del sitio.</li><li>Usar Reducciones CEN como señal energética candidata para el BESS.</li><li>El análisis BESS opera sobre datos reales CEN; el residuo SAM-CEN disponible no se propaga como energía recuperable.</li></ol></div>`)}
+        ${reportSection("3.", "Arquitectura equivalente CEME1 - seis submodelos SAM", buildReportArchitectureSection(architectureBundle))}
+        ${reportSection("4.", "Resultados energéticos y evolución mensual", table(["Señal", "Energía [GWh]", "Cobertura", "Δ contextual [GWh]", "Interpretación"], resumenRows, "annual") + `<p class="sa-report-figure-title">Figura 1 — Comparación mensual: simulación SAM, pronóstico y operación CEN 2025</p><div class="sa-report-chart"><canvas id="saReportMonthlyChart"></canvas></div><p class="sa-report-note">Lectura: las series de ${fmtInt(horasFull)} h y el Pronóstico centralizado CEN de ${fmtInt(horasPronostico)} h se muestran con cobertura explícita. En julio el pronóstico sólo cubre 720 h por ausencia del 31-07-2025, sin imputación.</p>`)}
+        ${reportSection("5.", "Perfil horario - arquitectura Este/Oeste", `<p>La configuración Este/Oeste desplaza la contribución relativa de los subarreglos hacia horas anteriores y posteriores al mediodía, ensanchando el perfil diario agregado de generación.</p><p class="sa-report-note">Debido a la baja inclinación de 5° y al promedio anual, el efecto puede manifestarse como un perfil ensanchado más que como dos máximos diferenciados.</p><p class="sa-report-figure-title">Figura 2 — Perfil horario promedio anual SAM NASA 2025 (subarrays Este y Oeste)</p><div class="sa-report-chart"><canvas id="saReportEastWestChart"></canvas></div>`)}
+        ${reportSection("6.", "Métricas de consistencia técnico-operacional", `<p>Las métricas comparan SAM NASA 2025, SAM TMY y Pronóstico centralizado CEN frente a CEN disponible, informando la cobertura de cada contraste. La comparación SAM NASA 2025 vs Generación real CEN se mantiene como auxiliar e ilustrativa.</p>${table(["Comparación", "MBE [MWh]", "MAE [MWh]", "RMSE [MWh]", "nRMSE [%]", "Correlación r", "Sesgo anual [%]"], metricRows, "metrics")}<p class="sa-report-figure-title">Figura 3 — nRMSE y correlación de Pearson por comparación</p><div class="sa-report-chart"><canvas id="saReportMetricsChart"></canvas></div>`)}
+        ${reportSection("7.", "Descomposición operacional del residuo", `<p>La brecha total entre SAM NASA 2025 y la Generación real CEN se descompone exclusivamente sobre las ${fmtInt(horasCommon)} h comunes con pronóstico.</p>${table(["Eslabón", "Fórmula", "Energía [GWh]", "Interpretación"], deltaRows, "deltas")}<p class="sa-report-note">Control algebraico: ΔE1 + ΔE2 + ΔE3 = Residuo total; error de cierre ${fmt(errorCierre, 6)} GWh.</p><p class="sa-report-figure-title">Figura 4 — Descomposición operacional del residuo SAM NASA 2025 − Generación real CEN</p><div class="sa-report-chart"><canvas id="saReportDeltasChart"></canvas></div>`)}
+        ${reportSection("8.", "Reducciones CEN y precio marginal horario - señal candidata BESS", `<p>El perfil horario de las Reducciones CEN permite identificar energía candidata de carga para BESS y su relación con el precio marginal horario Miraje 220 kV. La energía efectivamente almacenada dependerá de potencia, capacidad, SOC, eficiencia y restricciones de operación.</p><p class="sa-report-figure-title">Figura 5 — Reducciones CEN promedio y precio marginal horario Miraje 220 kV (2025)</p><div class="sa-report-chart"><canvas id="saReportCurtailmentPriceChart"></canvas></div>`)}
+        ${reportSection("9.", "Limitaciones metodológicas del Bloque 1", `<ul class="sa-report-list">${limitationsRows}</ul>`)}
+        ${reportSection("10.", "Conclusión técnica y decisión para el Bloque 2", `<p>${conclusion}</p><div class="sa-report-decision"><b>DECISIÓN TÉCNICA — BLOQUE 1 CERRADO</b><ol><li>Usar SAM NASA 2025 como base de contraste operacional frente a CEN 2025.</li><li>Mantener SAM TMY Explorador Solar como referencia meteorológica típica del sitio.</li><li>Usar Reducciones CEN como señal energética candidata para el BESS.</li><li>El análisis BESS opera sobre datos reales CEN; el residuo SAM-CEN disponible no se propaga como energía recuperable.</li></ol></div>`)}
         ${reportSection("A.", "Anexo — Respuestas técnicas para la defensa", table(["Pregunta de la comisión", "Respuesta técnica respaldada"], [
           ["<b>¿SAM NASA 2025 es consistente con los datos CEN?</b>", `El contraste se informa como verificación de consistencia técnico-operacional. Las diferencias se calculan desde los JSON del Bloque 1 y respetan la cobertura temporal de cada comparación.`],
           ["<b>¿Por qué el nRMSE no es menor?</b>", `El benchmark del Pronóstico CEN incorpora información operacional que SAM no modela. La comparación se informa como contraste operacional.`],
@@ -5842,7 +6013,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     const hRows = groupByHour(scadaRows || [], /nasa|2025/i);
     const hRowsCurtailment = hRows.map((row) => ({
       ...row,
-      reducciones_cen_mwh: n(row.reducciones_cen_plot_mwh) ?? 0,
+      reducciones_cen_mwh: n(row.reducciones_cen_mwh) ?? 0,
     }));
     const colors = { teal: "#22c7ad", cyan: "#38bdf8", navy: "#1f4773", gold: "#f6c64a", purple: "#9b59b6", red: "#e83f52", orange: "#f59e0b", green: "#2dd4bf" };
 
@@ -5890,7 +6061,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     }
 
     const cpCanvas = byId("saReportCurtailmentPriceChart");
-    if (cpCanvas) state.reportCharts.cp = new Chart(cpCanvas, { type: "bar", data: { labels: hRows.map((r) => r.hora_label), datasets: [barDs("Reducciones CEN", hRowsCurtailment.map((r) => r.reducciones_cen_mwh), colors.gold, "y"), lineDs("Precio marginal", hRows.map((r) => r.precio_spot_usd_mwh), colors.purple, "y1")] }, options: whiteChartOptions({ scales: { y: { title: { display: true, text: "Curtailment promedio [MWh/h]", color: "#334155" }, beginAtZero: true, ticks: { color: "#334155" }, grid: { color: "rgba(148,163,184,.22)" } }, y1: { position: "right", title: { display: true, text: "Precio marginal [USD/MWh]", color: "#334155" }, beginAtZero: true, ticks: { color: "#334155" }, grid: { drawOnChartArea: false } } } }), plugins: [whiteCanvasPlugin("cpWhiteBg")] });
+    if (cpCanvas) state.reportCharts.cp = new Chart(cpCanvas, { type: "bar", data: { labels: hRows.map((r) => r.hora_label), datasets: [barDs("Reducciones CEN", hRowsCurtailment.map((r) => r.reducciones_cen_mwh), colors.gold, "y"), lineDs("Precio marginal", hRows.map((r) => r.precio_spot_usd_mwh), colors.purple, "y1")] }, options: whiteChartOptions({ scales: { y: { title: { display: true, text: "Reducciones CEN [MWh/h]", color: "#334155" }, beginAtZero: true, ticks: { color: "#334155" }, grid: { color: "rgba(148,163,184,.22)" } }, y1: { position: "right", title: { display: true, text: "Precio marginal [USD/MWh]", color: "#334155" }, ticks: { color: "#334155" }, grid: { drawOnChartArea: false } } } }), plugins: [whiteCanvasPlugin("cpWhiteBg")] });
 
     const clippingMonthlyCanvas = byId("saReportClippingMonthlyChart");
     const clippingMonthly = Array.isArray(clippingBundle?.monthly) ? clippingBundle.monthly : [];
@@ -6185,14 +6356,15 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     const content = byId("reportBloque1Content") || byId("view-reportes");
     if (!content) return;
     setText("reportPdfStatus", "Cargando JSON...");
-    const [validation, profile, scadaRows, compareMetricsBundle, clippingBundle] = await Promise.all([
+    const [validation, profile, scadaRows, compareMetricsBundle, clippingBundle, architectureBundle] = await Promise.all([
       getValidationBundle(),
       getProfileBundle(),
       getScadaRows(),
       getReportCompareMetricsBundle(),
       getReportClippingBundle(),
+      getArchitectureBundle(),
     ]);
-    content.innerHTML = buildReportHtml(validation, compareMetricsBundle, clippingBundle);
+    content.innerHTML = buildReportHtml(validation, compareMetricsBundle, clippingBundle, architectureBundle);
     setText("reportPdfStatus", "Reporte cargado desde JSON");
     setTimeout(() => renderReportCharts(validation, profile, scadaRows, compareMetricsBundle, clippingBundle), 100);
     const button = byId("exportReportPdfBtn");

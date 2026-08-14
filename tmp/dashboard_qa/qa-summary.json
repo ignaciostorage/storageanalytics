@@ -1,0 +1,1190 @@
+{
+  "startedAt": "2026-08-14T02:43:30.354Z",
+  "target": "http://127.0.0.1:8000/",
+  "root": {
+    "title": "Storage Analytics | CEME1 FV + DUNE BESS",
+    "url": "http://127.0.0.1:8000/dashboard/",
+    "path": "/dashboard/",
+    "activeView": "view-general"
+  },
+  "consoleErrors": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "httpErrors": [],
+  "views": [
+    {
+      "name": "general",
+      "activeView": "view-general",
+      "heading": "0 W/m²",
+      "screenshot": "01-root-dashboard.png",
+      "text": {
+        "hasDoubleDash": true,
+        "hasMirage": false,
+        "hasMetricasValidacion": false,
+        "hasValidacionFV": false,
+        "hasForbiddenClippingSam": false,
+        "hasStrictIndirectPhrase": false,
+        "hasDatoNoDisponible": false
+      },
+      "canvases": [
+        {
+          "id": "operationChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 569,
+          "cssHeight": 244,
+          "width": 569,
+          "height": 244,
+          "alphaHits": 614,
+          "colorHits": 484,
+          "sampled": 5143,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "radiationChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 307,
+          "cssHeight": 134,
+          "width": 306,
+          "height": 134,
+          "alphaHits": 792,
+          "colorHits": 634,
+          "sampled": 5126,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "socChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 292,
+          "cssHeight": 134,
+          "width": 291,
+          "height": 134,
+          "alphaHits": 785,
+          "colorHits": 643,
+          "sampled": 5571,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "pmgChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 292,
+          "cssHeight": 134,
+          "width": 291,
+          "height": 134,
+          "alphaHits": 734,
+          "colorHits": 575,
+          "sampled": 5571,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "sparkGhi",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 124,
+          "cssHeight": 28,
+          "width": 117,
+          "height": 70,
+          "alphaHits": 0,
+          "colorHits": 0,
+          "sampled": 8190,
+          "nonBlank": false,
+          "error": null
+        },
+        {
+          "id": "sparkFv",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 124,
+          "cssHeight": 28,
+          "width": 117,
+          "height": 70,
+          "alphaHits": 0,
+          "colorHits": 0,
+          "sampled": 8190,
+          "nonBlank": false,
+          "error": null
+        },
+        {
+          "id": "sparkCurt",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 124,
+          "cssHeight": 28,
+          "width": 117,
+          "height": 70,
+          "alphaHits": 0,
+          "colorHits": 0,
+          "sampled": 8190,
+          "nonBlank": false,
+          "error": null
+        },
+        {
+          "id": "sparkInj",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 124,
+          "cssHeight": 28,
+          "width": 117,
+          "height": 70,
+          "alphaHits": 0,
+          "colorHits": 0,
+          "sampled": 8190,
+          "nonBlank": false,
+          "error": null
+        },
+        {
+          "id": "sparkCarga",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 124,
+          "cssHeight": 28,
+          "width": 117,
+          "height": 70,
+          "alphaHits": 0,
+          "colorHits": 0,
+          "sampled": 8190,
+          "nonBlank": false,
+          "error": null
+        },
+        {
+          "id": "sparkDescarga",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 124,
+          "cssHeight": 28,
+          "width": 117,
+          "height": 70,
+          "alphaHits": 0,
+          "colorHits": 0,
+          "sampled": 8190,
+          "nonBlank": false,
+          "error": null
+        },
+        {
+          "id": "sparkPmg",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 124,
+          "cssHeight": 28,
+          "width": 117,
+          "height": 70,
+          "alphaHits": 0,
+          "colorHits": 0,
+          "sampled": 8190,
+          "nonBlank": false,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "solar",
+      "activeView": "view-solar",
+      "heading": "Caracterización meteorológica TMY — María Elena",
+      "screenshot": "02-solar-tmy.png",
+      "text": {
+        "hasDoubleDash": false,
+        "hasMirage": false,
+        "hasMetricasValidacion": false,
+        "hasValidacionFV": false,
+        "hasForbiddenClippingSam": false,
+        "hasStrictIndirectPhrase": false,
+        "hasDatoNoDisponible": false
+      },
+      "canvases": [
+        {
+          "id": "solarPerfilHorarioChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 586,
+          "cssHeight": 280,
+          "width": 586,
+          "height": 280,
+          "alphaHits": 459,
+          "colorHits": 459,
+          "sampled": 5128,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "solarMensualPromedioChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 586,
+          "cssHeight": 280,
+          "width": 586,
+          "height": 280,
+          "alphaHits": 481,
+          "colorHits": 481,
+          "sampled": 5128,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "solarMensualAcumuladaChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 586,
+          "cssHeight": 280,
+          "width": 586,
+          "height": 280,
+          "alphaHits": 1627,
+          "colorHits": 1627,
+          "sampled": 5128,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "solarHeatmapGhi",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 586,
+          "cssHeight": 280,
+          "width": 586,
+          "height": 280,
+          "alphaHits": 3923,
+          "colorHits": 3923,
+          "sampled": 5128,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "solarTemperaturaChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 421,
+          "cssHeight": 134,
+          "width": 421,
+          "height": 134,
+          "alphaHits": 986,
+          "colorHits": 986,
+          "sampled": 5129,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "solarVientoChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 421,
+          "cssHeight": 134,
+          "width": 421,
+          "height": 134,
+          "alphaHits": 1350,
+          "colorHits": 1345,
+          "sampled": 5129,
+          "nonBlank": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "simulacion",
+      "activeView": "view-simulacion",
+      "heading": "Simulación energética FV CEME1",
+      "screenshot": "05-modelacion-fv.png",
+      "text": {
+        "hasDoubleDash": false,
+        "hasMirage": false,
+        "hasMetricasValidacion": false,
+        "hasValidacionFV": false,
+        "hasForbiddenClippingSam": false,
+        "hasStrictIndirectPhrase": false,
+        "hasDatoNoDisponible": false
+      },
+      "canvases": [
+        {
+          "id": "ceme1EastWestProfileChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 1128,
+          "cssHeight": 280,
+          "width": 1128,
+          "height": 280,
+          "alphaHits": 463,
+          "colorHits": 463,
+          "sampled": 5014,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "plantMonthlyEnergyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 1154,
+          "cssHeight": 280,
+          "width": 1154,
+          "height": 280,
+          "alphaHits": 2177,
+          "colorHits": 2177,
+          "sampled": 5049,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "plantHourlyProfileChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "width": 554,
+          "height": 280,
+          "alphaHits": 501,
+          "colorHits": 501,
+          "sampled": 5004,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "plantPoaOrientationChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "width": 554,
+          "height": 280,
+          "alphaHits": 367,
+          "colorHits": 367,
+          "sampled": 5004,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "plantSubmodelEnergyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "width": 554,
+          "height": 280,
+          "alphaHits": 1990,
+          "colorHits": 1990,
+          "sampled": 5004,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "plantOrientationBalanceChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "width": 554,
+          "height": 280,
+          "alphaHits": 1014,
+          "colorHits": 987,
+          "sampled": 5004,
+          "nonBlank": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "sam-cen",
+      "activeView": "view-sam-cen",
+      "heading": "Verificación de consistencia técnico-operacional FV contra operación CEN",
+      "screenshot": "06-operacion-cen.png",
+      "text": {
+        "hasDoubleDash": false,
+        "hasMirage": false,
+        "hasMetricasValidacion": false,
+        "hasValidacionFV": false,
+        "hasForbiddenClippingSam": false,
+        "hasStrictIndirectPhrase": false,
+        "hasDatoNoDisponible": true
+      },
+      "canvases": [
+        {
+          "id": "samCenAnnualChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "width": 554,
+          "height": 280,
+          "alphaHits": 2069,
+          "colorHits": 2069,
+          "sampled": 5004,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "samCenMonthlyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "width": 554,
+          "height": 280,
+          "alphaHits": 996,
+          "colorHits": 996,
+          "sampled": 5004,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "samCenResidualChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "width": 554,
+          "height": 280,
+          "alphaHits": 899,
+          "colorHits": 899,
+          "sampled": 5004,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "samCenHourlyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "width": 554,
+          "height": 280,
+          "alphaHits": 617,
+          "colorHits": 617,
+          "sampled": 5004,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "samCenCurtPriceChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 1154,
+          "cssHeight": 280,
+          "width": 1154,
+          "height": 280,
+          "alphaHits": 1110,
+          "colorHits": 1110,
+          "sampled": 5049,
+          "nonBlank": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "clipping",
+      "activeView": "view-clipping",
+      "heading": "Clipping estimado DC/AC CEME1",
+      "screenshot": "07-clipping.png",
+      "text": {
+        "hasDoubleDash": false,
+        "hasMirage": false,
+        "hasMetricasValidacion": false,
+        "hasValidacionFV": false,
+        "hasForbiddenClippingSam": false,
+        "hasStrictIndirectPhrase": false,
+        "hasDatoNoDisponible": false
+      },
+      "canvases": [
+        {
+          "id": "clippingMonthlyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "width": 554,
+          "height": 280,
+          "alphaHits": 822,
+          "colorHits": 822,
+          "sampled": 5004,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "clippingDcAcChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "width": 554,
+          "height": 280,
+          "alphaHits": 681,
+          "colorHits": 681,
+          "sampled": 5004,
+          "nonBlank": true,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "bess",
+      "activeView": "view-bess",
+      "heading": "Módulo BESS en desarrollo",
+      "screenshot": "08-bess.png",
+      "text": {
+        "hasDoubleDash": false,
+        "hasMirage": false,
+        "hasMetricasValidacion": false,
+        "hasValidacionFV": false,
+        "hasForbiddenClippingSam": false,
+        "hasStrictIndirectPhrase": false,
+        "hasDatoNoDisponible": false
+      },
+      "canvases": []
+    },
+    {
+      "name": "reportes",
+      "activeView": "view-reportes",
+      "heading": "Reporte Bloque 1 — Modelación FV CEME1 y contraste CEN",
+      "screenshot": "09-reportes.png",
+      "text": {
+        "hasDoubleDash": false,
+        "hasMirage": false,
+        "hasMetricasValidacion": false,
+        "hasValidacionFV": false,
+        "hasForbiddenClippingSam": false,
+        "hasStrictIndirectPhrase": false,
+        "hasDatoNoDisponible": false
+      },
+      "canvases": [
+        {
+          "id": "saReportMonthlyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "width": 968,
+          "height": 232,
+          "alphaHits": 5104,
+          "colorHits": 1970,
+          "sampled": 5104,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "saReportEastWestChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "width": 968,
+          "height": 232,
+          "alphaHits": 5104,
+          "colorHits": 1268,
+          "sampled": 5104,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "saReportMetricsChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "width": 968,
+          "height": 232,
+          "alphaHits": 5104,
+          "colorHits": 1526,
+          "sampled": 5104,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "saReportDeltasChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "width": 968,
+          "height": 232,
+          "alphaHits": 5104,
+          "colorHits": 1348,
+          "sampled": 5104,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "saReportCurtailmentPriceChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "width": 968,
+          "height": 232,
+          "alphaHits": 5104,
+          "colorHits": 1170,
+          "sampled": 5104,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "saReportClippingMonthlyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "width": 968,
+          "height": 232,
+          "alphaHits": 5104,
+          "colorHits": 870,
+          "sampled": 5104,
+          "nonBlank": true,
+          "error": null
+        },
+        {
+          "id": "saReportClippingDcAcChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "width": 968,
+          "height": 232,
+          "alphaHits": 5104,
+          "colorHits": 992,
+          "sampled": 5104,
+          "nonBlank": true,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "solarModes": {
+    "tmy": {
+      "activeMode": "tmy",
+      "metricsHidden": true,
+      "metricsDisplay": "none",
+      "heatmapHidden": false,
+      "heatmapDisplay": "block",
+      "compareRows": 0,
+      "hasDatoNoDisponible": false
+    },
+    "nasa": {
+      "activeMode": "nasa",
+      "metricsHidden": true,
+      "metricsDisplay": "none",
+      "heatmapHidden": false,
+      "heatmapDisplay": "block",
+      "compareRows": 0,
+      "hasDatoNoDisponible": false
+    },
+    "compare": {
+      "activeMode": "compare",
+      "metricsHidden": false,
+      "metricsDisplay": "flex",
+      "heatmapHidden": true,
+      "heatmapDisplay": "none",
+      "compareRows": 3,
+      "hasDatoNoDisponible": false
+    }
+  },
+  "mobile": {
+    "title": "Storage Analytics | CEME1 FV + DUNE BESS",
+    "url": "http://127.0.0.1:8000/dashboard/",
+    "path": "/dashboard/",
+    "activeView": "view-general",
+    "viewportWidth": 390,
+    "bodyWidth": 390,
+    "horizontalOverflow": false,
+    "screenshot": "10-mobile-root.png"
+  },
+  "finishedAt": "2026-08-14T02:43:54.378Z",
+  "failedCanvasChecks": [
+    {
+      "view": "general",
+      "id": "sparkGhi"
+    },
+    {
+      "view": "general",
+      "id": "sparkFv"
+    },
+    {
+      "view": "general",
+      "id": "sparkCurt"
+    },
+    {
+      "view": "general",
+      "id": "sparkInj"
+    },
+    {
+      "view": "general",
+      "id": "sparkCarga"
+    },
+    {
+      "view": "general",
+      "id": "sparkDescarga"
+    },
+    {
+      "view": "general",
+      "id": "sparkPmg"
+    }
+  ],
+  "missingCanvasChecks": [],
+  "textFlaggedViews": [
+    {
+      "name": "general",
+      "text": {
+        "hasDoubleDash": true,
+        "hasMirage": false,
+        "hasMetricasValidacion": false,
+        "hasValidacionFV": false,
+        "hasForbiddenClippingSam": false,
+        "hasStrictIndirectPhrase": false,
+        "hasDatoNoDisponible": false
+      }
+    }
+  ],
+  "screenshots": [
+    "01-root-dashboard.png",
+    "02-solar-tmy.png",
+    "03-solar-nasa.png",
+    "04-solar-compare.png",
+    "05-modelacion-fv.png",
+    "06-operacion-cen.png",
+    "07-clipping.png",
+    "08-bess.png",
+    "09-reportes.png",
+    "09b-reportes-generated.png",
+    "10-mobile-root.png"
+  ],
+  "finalTargetedCheck": {
+    "consoleErrors": [],
+    "pageErrors": [],
+    "requestFailures": [],
+    "httpErrors": [],
+    "root": {
+      "title": "Storage Analytics | CEME1 FV + DUNE BESS",
+      "url": "http://127.0.0.1:8000/dashboard/",
+      "activeView": "view-general",
+      "text": {
+        "hasDoubleDash": false,
+        "hasMirage": false,
+        "hasForbiddenTerminology": false,
+        "hasDatoNoDisponible": false
+      },
+      "mainCanvases": [
+        {
+          "id": "operationChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 564,
+          "cssHeight": 244,
+          "alphaHits": 624,
+          "colorHits": 483,
+          "nonBlank": true
+        },
+        {
+          "id": "radiationChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 307,
+          "cssHeight": 134,
+          "alphaHits": 792,
+          "colorHits": 634,
+          "nonBlank": true
+        },
+        {
+          "id": "socChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 292,
+          "cssHeight": 134,
+          "alphaHits": 785,
+          "colorHits": 643,
+          "nonBlank": true
+        },
+        {
+          "id": "pmgChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 292,
+          "cssHeight": 134,
+          "alphaHits": 734,
+          "colorHits": 575,
+          "nonBlank": true
+        }
+      ],
+      "sparkDisplays": [
+        {
+          "id": "sparkGhi",
+          "display": "none",
+          "rect": "0x0"
+        },
+        {
+          "id": "sparkFv",
+          "display": "none",
+          "rect": "0x0"
+        },
+        {
+          "id": "sparkCurt",
+          "display": "none",
+          "rect": "0x0"
+        },
+        {
+          "id": "sparkInj",
+          "display": "none",
+          "rect": "0x0"
+        },
+        {
+          "id": "sparkCarga",
+          "display": "none",
+          "rect": "0x0"
+        },
+        {
+          "id": "sparkDescarga",
+          "display": "none",
+          "rect": "0x0"
+        },
+        {
+          "id": "sparkPmg",
+          "display": "none",
+          "rect": "0x0"
+        }
+      ]
+    },
+    "solarModes": {
+      "tmy": {
+        "mode": "tmy",
+        "metricsDisplay": "none",
+        "heatmapDisplay": "block",
+        "rows": 0,
+        "text": false
+      },
+      "nasa": {
+        "mode": "nasa",
+        "metricsDisplay": "none",
+        "heatmapDisplay": "block",
+        "rows": 0,
+        "text": false
+      },
+      "compare": {
+        "mode": "compare",
+        "metricsDisplay": "flex",
+        "heatmapDisplay": "none",
+        "rows": 3,
+        "text": false
+      }
+    },
+    "samCen": {
+      "text": {
+        "hasDoubleDash": false,
+        "hasMirage": false,
+        "hasForbiddenTerminology": false,
+        "hasDatoNoDisponible": true
+      },
+      "canvases": [
+        {
+          "id": "samCenAnnualChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "alphaHits": 2069,
+          "colorHits": 2069,
+          "nonBlank": true
+        },
+        {
+          "id": "samCenMonthlyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "alphaHits": 996,
+          "colorHits": 996,
+          "nonBlank": true
+        },
+        {
+          "id": "samCenResidualChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "alphaHits": 899,
+          "colorHits": 899,
+          "nonBlank": true
+        },
+        {
+          "id": "samCenHourlyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 554,
+          "cssHeight": 280,
+          "alphaHits": 617,
+          "colorHits": 617,
+          "nonBlank": true
+        },
+        {
+          "id": "samCenCurtPriceChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 1154,
+          "cssHeight": 280,
+          "alphaHits": 1110,
+          "colorHits": 1110,
+          "nonBlank": true
+        }
+      ]
+    },
+    "reportes": {
+      "text": {
+        "hasDoubleDash": false,
+        "hasMirage": false,
+        "hasForbiddenTerminology": false,
+        "hasDatoNoDisponible": false
+      },
+      "canvases": [
+        {
+          "id": "saReportMonthlyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "alphaHits": 5104,
+          "colorHits": 1970,
+          "nonBlank": true
+        },
+        {
+          "id": "saReportEastWestChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "alphaHits": 5104,
+          "colorHits": 1268,
+          "nonBlank": true
+        },
+        {
+          "id": "saReportMetricsChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "alphaHits": 5104,
+          "colorHits": 1526,
+          "nonBlank": true
+        },
+        {
+          "id": "saReportDeltasChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "alphaHits": 5104,
+          "colorHits": 1348,
+          "nonBlank": true
+        },
+        {
+          "id": "saReportCurtailmentPriceChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "alphaHits": 5104,
+          "colorHits": 1170,
+          "nonBlank": true
+        },
+        {
+          "id": "saReportClippingMonthlyChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "alphaHits": 5104,
+          "colorHits": 870,
+          "nonBlank": true
+        },
+        {
+          "id": "saReportClippingDcAcChart",
+          "exists": true,
+          "visible": true,
+          "cssWidth": 968,
+          "cssHeight": 232,
+          "alphaHits": 5104,
+          "colorHits": 992,
+          "nonBlank": true
+        }
+      ]
+    },
+    "mobile": {
+      "url": "http://127.0.0.1:8000/dashboard/",
+      "bodyWidth": 390,
+      "horizontalOverflow": false
+    },
+    "failures": []
+  },
+  "finalSweep": {
+    "consoleErrors": [],
+    "pageErrors": [],
+    "requestFailures": [],
+    "httpErrors": [],
+    "root": {
+      "url": "http://127.0.0.1:8000/dashboard/",
+      "active": "view-general",
+      "text": {
+        "doubleDash": false,
+        "forbidden": false
+      },
+      "recommendationInFrame": true,
+      "canvases": [
+        {
+          "id": "operationChart",
+          "exists": true,
+          "visible": true,
+          "hits": 356,
+          "ok": true
+        },
+        {
+          "id": "radiationChart",
+          "exists": true,
+          "visible": true,
+          "hits": 447,
+          "ok": true
+        },
+        {
+          "id": "socChart",
+          "exists": true,
+          "visible": true,
+          "hits": 465,
+          "ok": true
+        },
+        {
+          "id": "pmgChart",
+          "exists": true,
+          "visible": true,
+          "hits": 428,
+          "ok": true
+        }
+      ],
+      "sparkHidden": true
+    },
+    "solar": {
+      "tmy": {
+        "active": "tmy",
+        "metrics": "none",
+        "heatmap": "block",
+        "rows": 0,
+        "textHasDatoNoDisponible": false
+      },
+      "nasa": {
+        "active": "nasa",
+        "metrics": "none",
+        "heatmap": "block",
+        "rows": 0,
+        "textHasDatoNoDisponible": false
+      },
+      "compare": {
+        "active": "compare",
+        "metrics": "flex",
+        "heatmap": "none",
+        "rows": 3,
+        "textHasDatoNoDisponible": false
+      }
+    },
+    "samCen": {
+      "text": {
+        "doubleDash": false,
+        "forbidden": false
+      },
+      "canvases": [
+        {
+          "id": "samCenAnnualChart",
+          "exists": true,
+          "visible": true,
+          "hits": 1261,
+          "ok": true
+        },
+        {
+          "id": "samCenMonthlyChart",
+          "exists": true,
+          "visible": true,
+          "hits": 616,
+          "ok": true
+        },
+        {
+          "id": "samCenResidualChart",
+          "exists": true,
+          "visible": true,
+          "hits": 547,
+          "ok": true
+        },
+        {
+          "id": "samCenHourlyChart",
+          "exists": true,
+          "visible": true,
+          "hits": 383,
+          "ok": true
+        },
+        {
+          "id": "samCenCurtPriceChart",
+          "exists": true,
+          "visible": true,
+          "hits": 651,
+          "ok": true
+        }
+      ]
+    },
+    "report": {
+      "text": {
+        "doubleDash": false,
+        "forbidden": false
+      },
+      "canvases": [
+        {
+          "id": "saReportMonthlyChart",
+          "exists": true,
+          "visible": true,
+          "hits": 3035,
+          "ok": true
+        },
+        {
+          "id": "saReportEastWestChart",
+          "exists": true,
+          "visible": true,
+          "hits": 3035,
+          "ok": true
+        },
+        {
+          "id": "saReportMetricsChart",
+          "exists": true,
+          "visible": true,
+          "hits": 3035,
+          "ok": true
+        },
+        {
+          "id": "saReportDeltasChart",
+          "exists": true,
+          "visible": true,
+          "hits": 3035,
+          "ok": true
+        },
+        {
+          "id": "saReportCurtailmentPriceChart",
+          "exists": true,
+          "visible": true,
+          "hits": 3035,
+          "ok": true
+        },
+        {
+          "id": "saReportClippingMonthlyChart",
+          "exists": true,
+          "visible": true,
+          "hits": 3035,
+          "ok": true
+        },
+        {
+          "id": "saReportClippingDcAcChart",
+          "exists": true,
+          "visible": true,
+          "hits": 3035,
+          "ok": true
+        }
+      ]
+    },
+    "mobile": {
+      "url": "http://127.0.0.1:8000/dashboard/",
+      "overflow": false,
+      "width": 390
+    },
+    "failures": []
+  }
+}
