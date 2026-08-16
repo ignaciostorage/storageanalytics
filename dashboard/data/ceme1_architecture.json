@@ -1,0 +1,114 @@
+{
+  "metadata": {
+    "planta": "CEME1",
+    "descripcion": "Arquitectura equivalente CEME1 para modelacion FV en seis submodelos SAM",
+    "tipo": "configuracion_estructural",
+    "nota": "Los seis submodelos constituyen una representacion equivalente de una unica planta CEME1 y sus resultados horarios se consolidan para obtener la generacion total modelada.",
+    "fuente": "Configuracion estructural validada Bloque 1"
+  },
+  "geometria": {
+    "tipo": "orientacion_fija_este_oeste",
+    "inclinacion_grados": 5,
+    "azimut_este_grados": 90,
+    "azimut_oeste_grados": 270,
+    "descripcion": "Este 5 grados / Oeste 5 grados en V invertida equivalente"
+  },
+  "totales": {
+    "strings": 29424,
+    "inversores": 120,
+    "potencia_dc_mwp": 480.1896,
+    "modulos_por_string": 30,
+    "submodelos": 6
+  },
+  "familias": [
+    {
+      "familia": "A",
+      "submodelos": ["SC01", "SC02"],
+      "modulo_wp": 540
+    },
+    {
+      "familia": "B",
+      "submodelos": ["SC03", "SC04"],
+      "modulo_wp": 545
+    },
+    {
+      "familia": "C",
+      "submodelos": ["SC05", "SC06"],
+      "modulo_wp": 545
+    }
+  ],
+  "submodelos": [
+    {
+      "submodelo": "SC01",
+      "familia": "A",
+      "orientacion": "Este",
+      "azimut_grados": 90,
+      "inclinacion_grados": 5,
+      "modulo_wp": 540,
+      "strings": 2976,
+      "modulos_por_string": 30,
+      "inversores": 12,
+      "potencia_dc_mwp": 48.2112
+    },
+    {
+      "submodelo": "SC02",
+      "familia": "A",
+      "orientacion": "Oeste",
+      "azimut_grados": 270,
+      "inclinacion_grados": 5,
+      "modulo_wp": 540,
+      "strings": 2976,
+      "modulos_por_string": 30,
+      "inversores": 12,
+      "potencia_dc_mwp": 48.2112
+    },
+    {
+      "submodelo": "SC03",
+      "familia": "B",
+      "orientacion": "Este",
+      "azimut_grados": 90,
+      "inclinacion_grados": 5,
+      "modulo_wp": 545,
+      "strings": 5040,
+      "modulos_por_string": 30,
+      "inversores": 21,
+      "potencia_dc_mwp": 82.404
+    },
+    {
+      "submodelo": "SC04",
+      "familia": "B",
+      "orientacion": "Oeste",
+      "azimut_grados": 270,
+      "inclinacion_grados": 5,
+      "modulo_wp": 545,
+      "strings": 5040,
+      "modulos_por_string": 30,
+      "inversores": 21,
+      "potencia_dc_mwp": 82.404
+    },
+    {
+      "submodelo": "SC05",
+      "familia": "C",
+      "orientacion": "Este",
+      "azimut_grados": 90,
+      "inclinacion_grados": 5,
+      "modulo_wp": 545,
+      "strings": 6696,
+      "modulos_por_string": 30,
+      "inversores": 27,
+      "potencia_dc_mwp": 109.4796
+    },
+    {
+      "submodelo": "SC06",
+      "familia": "C",
+      "orientacion": "Oeste",
+      "azimut_grados": 270,
+      "inclinacion_grados": 5,
+      "modulo_wp": 545,
+      "strings": 6696,
+      "modulos_por_string": 30,
+      "inversores": 27,
+      "potencia_dc_mwp": 109.4796
+    }
+  ]
+}
