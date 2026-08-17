@@ -4740,119 +4740,117 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     </g>`;
   }
   function buildUnifilarSvg(archKpis = {}) {
-    const W = 1000, H = 300;
-    const navy = "#1f4773", ink2 = "#52514e", teal = "#0fc8aa";
-    const parts = [];
-    parts.push(`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;background:#fff;border:1px solid #e5e9f0;border-radius:6px;font-family:Arial,Helvetica,sans-serif;">`);
-    parts.push(`<defs>
-      <marker id="unifilarArrow" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z" fill="${ink2}"/></marker>
-      <pattern id="unifilarPvHatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
-        <line x1="0" y1="0" x2="0" y2="6" stroke="#2a78d6" stroke-width="1.6"/>
-      </pattern>
-    </defs>`);
-    const yMain = 150;
+    const W = 1240, H = 340;
+    const navy = "#1f4773", ink = "#273444", muted = "#68727d", teal = "#0fc8aa", amber = "#c98500";
     const modulos = fmtInt(archKpis.modulos);
     const strings = fmtInt(archKpis.strings);
     const inversores = fmtInt(archKpis.inversores);
+    const y = 154;
+    const parts = [];
 
-    let x = 20;
-    parts.push(`<rect x="${x}" y="${yMain - 40}" width="70" height="80" rx="4" fill="url(#unifilarPvHatch)" fill-opacity="0.35" stroke="${navy}" stroke-width="1.4"/>`);
-    parts.push(`<text x="${x + 35}" y="${yMain + 52}" font-size="9.5" text-anchor="middle" fill="#1f2937" font-weight="700">Campo FV</text>`);
-    parts.push(`<text x="${x + 35}" y="${yMain + 64}" font-size="8" text-anchor="middle" fill="${ink2}">${modulos} módulos</text>`);
-    parts.push(`<text x="${x + 35}" y="${yMain + 75}" font-size="8" text-anchor="middle" fill="${ink2}">${strings} strings</text>`);
+    const label = (x, yy, text, size = 10, weight = 400, color = ink, anchor = "middle") =>
+      `<text x="${x}" y="${yy}" font-size="${size}" font-weight="${weight}" fill="${color}" text-anchor="${anchor}">${text}</text>`;
+    const line = (x1, y1, x2, y2, color = ink, width = 1.8, extra = "") =>
+      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" ${extra}/>`;
+    const ground = (x, gy) => [
+      line(x, gy, x, gy + 8, muted, 1.2),
+      line(x - 8, gy + 8, x + 8, gy + 8, muted, 1.2),
+      line(x - 5, gy + 12, x + 5, gy + 12, muted, 1.2),
+      line(x - 2, gy + 16, x + 2, gy + 16, muted, 1.2),
+    ].join("");
 
-    let x2 = x + 70, x3 = x2 + 55;
-    parts.push(`<line x1="${x2}" y1="${yMain}" x2="${x3 - 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.6" marker-end="url(#unifilarArrow)"/>`);
-    parts.push(`<text x="${(x2 + x3) / 2}" y="${yMain - 8}" font-size="7.5" text-anchor="middle" fill="${ink2}">DC</text>`);
+    parts.push(`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;background:#fff;border:1px solid #e5e9f0;border-radius:6px;font-family:Arial,Helvetica,sans-serif;">`);
+    parts.push(`<defs>
+      <marker id="saUfArrow" markerWidth="8" markerHeight="8" refX="6.2" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${ink}"/></marker>
+      <pattern id="saUfPvHatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="7" stroke="#2a78d6" stroke-width="1.5"/></pattern>
+    </defs>`);
 
-    const invCx = x3 + 20;
-    parts.push(`<rect x="${invCx - 24}" y="${yMain - 22}" width="48" height="44" rx="4" fill="#eaf1fb" stroke="${navy}" stroke-width="1.4"/>`);
-    parts.push(`<path d="M ${invCx - 14} ${yMain} q 5 -10 10 0 t 10 0" fill="none" stroke="${navy}" stroke-width="1.4"/>`);
-    parts.push(`<text x="${invCx}" y="${yMain + 34}" font-size="9.5" text-anchor="middle" fill="#1f2937" font-weight="700">Inversores</text>`);
-    parts.push(`<text x="${invCx}" y="${yMain + 46}" font-size="8" text-anchor="middle" fill="${ink2}">${inversores} × Sungrow</text>`);
-    parts.push(`<text x="${invCx}" y="${yMain + 57}" font-size="8" text-anchor="middle" fill="${ink2}">SG3125HV-MV-30</text>`);
+    // Campo FV
+    const pvX = 38, pvW = 96;
+    parts.push(`<rect x="${pvX}" y="${y - 50}" width="${pvW}" height="100" rx="5" fill="url(#saUfPvHatch)" fill-opacity="0.24" stroke="${navy}" stroke-width="1.8"/>`);
+    parts.push(label(pvX + pvW/2, y + 70, "Campo FV", 12, 700));
+    parts.push(label(pvX + pvW/2, y + 86, `${modulos} módulos`, 9, 400, muted));
+    parts.push(label(pvX + pvW/2, y + 100, `${strings} strings`, 9, 400, muted));
+    parts.push(label(pvX + pvW/2, y - 66, "DC", 9, 700, muted));
 
-    let x4 = invCx + 24, x5 = x4 + 45;
-    parts.push(`<line x1="${x4}" y1="${yMain}" x2="${x5 - 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.6" marker-end="url(#unifilarArrow)"/>`);
-    parts.push(`<text x="${(x4 + x5) / 2}" y="${yMain - 8}" font-size="7.5" text-anchor="middle" fill="${ink2}">0,6 kV AC</text>`);
+    // Inversor
+    const invX = 196, invW = 66;
+    parts.push(line(pvX + pvW, y, invX - 14, y, ink, 1.8, 'marker-end="url(#saUfArrow)"'));
+    parts.push(`<rect x="${invX}" y="${y - 34}" width="${invW}" height="68" rx="6" fill="#eef5fb" stroke="${navy}" stroke-width="1.8"/>`);
+    parts.push(`<path d="M${invX+13},${y} q8,-15 16,0 t16,0" fill="none" stroke="${navy}" stroke-width="2"/>`);
+    parts.push(label(invX + invW/2, y + 56, "Inversores", 12, 700));
+    parts.push(label(invX + invW/2, y + 72, `${inversores} × Sungrow`, 9, 400, muted));
+    parts.push(label(invX + invW/2, y + 86, "SG3125HV-MV-30", 8.6, 400, muted));
+    parts.push(label(invX + invW/2, y - 50, "0,6 kV AC", 9, 700, muted));
 
-    const txCx = x5 + 22;
-    parts.push(unifilarTransformer3w(txCx, yMain, 15, navy));
-    parts.push(`<text x="${txCx}" y="${yMain + 38}" font-size="9.5" text-anchor="middle" fill="#1f2937" font-weight="700">60 Centros de</text>`);
-    parts.push(`<text x="${txCx}" y="${yMain + 49}" font-size="9.5" text-anchor="middle" fill="#1f2937" font-weight="700">Transformación</text>`);
-    parts.push(`<text x="${txCx}" y="${yMain + 61}" font-size="8" text-anchor="middle" fill="${ink2}">Transf. bloque 3 dev.</text>`);
-    parts.push(`<text x="${txCx}" y="${yMain + 71}" font-size="8" text-anchor="middle" fill="${ink2}">0,6 / 33 kV · 6,25 MVA</text>`);
+    // CT
+    const ctX = 345;
+    parts.push(line(invX + invW, y, ctX - 35, y, ink, 1.8, 'marker-end="url(#saUfArrow)"'));
+    parts.push(unifilarTransformer3w(ctX, y, 22, navy));
+    parts.push(label(ctX, y + 58, "60 Centros de Transformación", 11, 700));
+    parts.push(label(ctX, y + 74, "Transf. bloque 3 dev.", 8.8, 400, muted));
+    parts.push(label(ctX, y + 88, "0,6 / 33 kV · 6,25 MVA", 8.8, 400, muted));
 
-    let x6 = txCx + 20, x7 = x6 + 45;
-    parts.push(`<line x1="${x6}" y1="${yMain}" x2="${x7 - 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.6" marker-end="url(#unifilarArrow)"/>`);
+    // Red colectora 33 kV
+    const colX0 = 440, colX1 = 600;
+    parts.push(line(ctX + 30, y, colX0 - 14, y, ink, 1.8, 'marker-end="url(#saUfArrow)"'));
+    parts.push(line(colX0, y, colX1, y, navy, 5));
+    [468, 520, 572].forEach((bx) => parts.push(unifilarBreaker(bx, y, 7, ink)));
+    parts.push(label((colX0 + colX1)/2, y - 18, "Red colectora 33 kV", 11, 700));
+    parts.push(label((colX0 + colX1)/2, y + 24, "20 circuitos colectores", 9, 400, muted));
+    // Banco de condensadores, derivación inferior
+    const capX = 555;
+    parts.push(line(capX, y, capX, y + 32, muted, 1.3));
+    parts.push(unifilarCapBank(capX, y + 32, muted));
+    parts.push(label(capX, y + 82, "4 × banco · 10 MVAr", 8.5, 400, muted));
 
-    const bus1x0 = x7, bus1x1 = bus1x0 + 90;
-    parts.push(`<line x1="${bus1x0}" y1="${yMain}" x2="${bus1x1}" y2="${yMain}" stroke="${navy}" stroke-width="4"/>`);
-    parts.push(unifilarBreaker(bus1x0 + 30, yMain));
-    parts.push(`<text x="${(bus1x0 + bus1x1) / 2}" y="${yMain - 10}" font-size="8.5" text-anchor="middle" fill="#1f2937" font-weight="700">Red colectora 33 kV</text>`);
-    parts.push(`<text x="${(bus1x0 + bus1x1) / 2}" y="${yMain + 18}" font-size="8" text-anchor="middle" fill="${ink2}">20 circuitos colectores</text>`);
-    parts.push(`<line x1="${bus1x0 + 65}" y1="${yMain}" x2="${bus1x0 + 65}" y2="${yMain + 20}" stroke="${ink2}" stroke-width="1.3"/>`);
-    parts.push(unifilarCapBank(bus1x0 + 65, yMain + 20));
-    parts.push(`<text x="${bus1x0 + 65}" y="${yMain + 58}" font-size="7.5" text-anchor="middle" fill="${ink2}">4 × banco</text>`);
-    parts.push(`<text x="${bus1x0 + 65}" y="${yMain + 68}" font-size="7.5" text-anchor="middle" fill="${ink2}">10 MVAr</text>`);
-
-    let x8 = bus1x1, x9 = x8 + 45;
-    parts.push(`<line x1="${x8}" y1="${yMain}" x2="${x9 - 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.6" marker-end="url(#unifilarArrow)"/>`);
-
-    const bus2x0 = x9, bus2x1 = bus2x0 + 20;
-    [-24, -8, 8, 24].forEach((dy) => {
-      parts.push(`<line x1="${bus2x0}" y1="${yMain + dy}" x2="${bus2x1}" y2="${yMain + dy}" stroke="${navy}" stroke-width="4"/>`);
+    // 4 barras 33kV representadas claramente
+    const busX = 676, busLen = 42;
+    parts.push(line(colX1, y, busX - 24, y, ink, 1.8, 'marker-end="url(#saUfArrow)"'));
+    [-30,-10,10,30].forEach((dy) => {
+      parts.push(line(busX, y+dy, busX+busLen, y+dy, navy, 5));
+      parts.push(line(busX-24, y, busX, y+dy, muted, 1.2));
     });
-    [-24, -8, 8, 24].forEach((dy) => {
-      parts.push(`<line x1="${x9 - 14}" y1="${yMain}" x2="${bus2x0}" y2="${yMain + dy}" stroke="${ink2}" stroke-width="1.1"/>`);
+    parts.push(label(busX + busLen/2, y - 48, "4 barras", 10, 700));
+    parts.push(label(busX + busLen/2, y + 52, "33 kV", 9, 400, muted));
+
+    // Dos transformadores principales en paralelo hacia bus común 220 kV
+    const txpX = 818;
+    [-22,22].forEach((dy) => {
+      parts.push(line(busX + busLen, y+dy/1.4, txpX - 38, y+dy, muted, 1.4));
+      parts.push(unifilarTransformer3w(txpX, y+dy, 20, navy));
+      parts.push(line(txpX + 31, y+dy, 890, y+dy, muted, 1.4));
+      parts.push(line(890, y+dy, 900, y, muted, 1.4));
     });
-    parts.push(`<text x="${(bus2x0 + bus2x1) / 2}" y="${yMain - 38}" font-size="8" text-anchor="middle" fill="#1f2937" font-weight="700">4 barras</text>`);
-    parts.push(`<text x="${(bus2x0 + bus2x1) / 2}" y="${yMain + 42}" font-size="8" text-anchor="middle" fill="${ink2}">33 kV</text>`);
+    parts.push(label(txpX, y + 80, "2 Transformadores principales", 11, 700));
+    parts.push(label(txpX, y + 96, "220 / 33 / 33 kV", 8.8, 400, muted));
+    parts.push(label(txpX, y + 110, "150 / 200 / 250 MVA", 8.8, 400, muted));
 
-    let x10 = bus2x1, x11 = x10 + 40;
-    [-16, 16].forEach((dy) => {
-      parts.push(`<line x1="${x10}" y1="${yMain + dy}" x2="${x11 - 14}" y2="${yMain + dy}" stroke="${ink2}" stroke-width="1.4"/>`);
-    });
-    parts.push(`<line x1="${x11 - 14}" y1="${yMain - 16}" x2="${x11}" y2="${yMain}" stroke="${ink2}" stroke-width="1.4"/>`);
-    parts.push(`<line x1="${x11 - 14}" y1="${yMain + 16}" x2="${x11}" y2="${yMain}" stroke="${ink2}" stroke-width="1.4"/>`);
-    parts.push(`<line x1="${x11}" y1="${yMain}" x2="${x11 + 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.4" marker-end="url(#unifilarArrow)"/>`);
+    // Barra y S/E CEME1
+    const seX = 936;
+    parts.push(line(900, y, seX - 14, y, ink, 1.8, 'marker-end="url(#saUfArrow)"'));
+    parts.push(line(seX, y-34, seX, y+34, navy, 6));
+    parts.push(label(seX, y - 48, "S/E CEME1", 10, 700));
+    parts.push(label(seX, y + 52, "220 kV", 9, 400, muted));
 
-    const tx2Cx = x11 + 34;
-    parts.push(unifilarTransformer3w(tx2Cx, yMain, 18, navy));
-    parts.push(`<text x="${tx2Cx}" y="${yMain + 42}" font-size="9.5" text-anchor="middle" fill="#1f2937" font-weight="700">2 Transf. principales</text>`);
-    parts.push(`<text x="${tx2Cx}" y="${yMain + 53}" font-size="8" text-anchor="middle" fill="${ink2}">220 / 33 / 33 kV</text>`);
-    parts.push(`<text x="${tx2Cx}" y="${yMain + 64}" font-size="8" text-anchor="middle" fill="${ink2}">150 / 200 / 250 MVA</text>`);
+    // Línea 220 kV a Mirage
+    const mirX = 1090;
+    parts.push(line(seX + 5, y, mirX - 28, y, teal, 2.2, 'stroke-dasharray="8,5" marker-end="url(#saUfArrow)"'));
+    parts.push(label((seX + mirX)/2, y - 18, "1 × 220 kV", 9, 700, "#0a8a71"));
+    parts.push(label((seX + mirX)/2, y + 25, "≈ 9,2 km", 9, 400, "#0a8a71"));
+    parts.push(`<rect x="${mirX}" y="${y - 33}" width="108" height="66" rx="7" fill="#eafaf5" stroke="${teal}" stroke-width="1.8"/>`);
+    parts.push(label(mirX + 54, y - 4, "S/E Mirage", 12, 700));
+    parts.push(label(mirX + 54, y + 14, "220 kV · SEN", 10, 400, muted));
+    parts.push(ground(mirX + 54, y + 33));
 
-    let x12 = tx2Cx + 22, x13 = x12 + 40;
-    parts.push(`<line x1="${x12}" y1="${yMain}" x2="${x13 - 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.6" marker-end="url(#unifilarArrow)"/>`);
+    // PPC: circuito de control claramente separado del camino de potencia
+    const ppcX = 250, ppcY = 286;
+    parts.push(`<rect x="${ppcX - 58}" y="${ppcY - 17}" width="116" height="34" rx="5" fill="#fff7ea" stroke="${amber}" stroke-width="1.4" stroke-dasharray="4,3"/>`);
+    parts.push(label(ppcX, ppcY + 4, "PPC — Control de planta", 9.5, 700, "#8a5a00"));
+    parts.push(line(ppcX, ppcY - 17, invX + invW/2, y + 36, amber, 1.2, 'stroke-dasharray="4,3"'));
+    parts.push(line(ppcX + 34, ppcY - 17, seX, y + 36, amber, 1.0, 'stroke-dasharray="4,3" opacity="0.65"'));
 
-    const bus3x0 = x13, bus3x1 = bus3x0 + 26;
-    parts.push(`<line x1="${bus3x0}" y1="${yMain}" x2="${bus3x1}" y2="${yMain}" stroke="${navy}" stroke-width="5"/>`);
-    parts.push(`<text x="${(bus3x0 + bus3x1) / 2}" y="${yMain - 12}" font-size="8" text-anchor="middle" fill="#1f2937" font-weight="700">S/E CEME1</text>`);
-    parts.push(`<text x="${(bus3x0 + bus3x1) / 2}" y="${yMain + 18}" font-size="8" text-anchor="middle" fill="${ink2}">220 kV</text>`);
-
-    const lineX0 = bus3x1, lineX1 = lineX0 + 90;
-    parts.push(`<line x1="${lineX0}" y1="${yMain}" x2="${lineX1 - 14}" y2="${yMain}" stroke="${teal}" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#unifilarArrow)"/>`);
-    parts.push(`<text x="${(lineX0 + lineX1) / 2}" y="${yMain - 10}" font-size="8" text-anchor="middle" fill="#0a8a71" font-weight="700">1 × 220 kV</text>`);
-    parts.push(`<text x="${(lineX0 + lineX1) / 2}" y="${yMain + 18}" font-size="8" text-anchor="middle" fill="#0a8a71">≈ 9,2 km</text>`);
-
-    const destX = lineX1;
-    parts.push(`<rect x="${destX}" y="${yMain - 24}" width="88" height="48" rx="5" fill="#eafaf5" stroke="${teal}" stroke-width="1.5"/>`);
-    parts.push(`<text x="${destX + 44}" y="${yMain - 2}" font-size="10.5" text-anchor="middle" fill="#1f2937" font-weight="700">S/E Mirage</text>`);
-    parts.push(`<text x="${destX + 44}" y="${yMain + 12}" font-size="9.5" text-anchor="middle" fill="${ink2}">220 kV · SEN</text>`);
-    const gx = destX + 44, gy = yMain + 24;
-    parts.push(`<line x1="${gx}" y1="${gy}" x2="${gx}" y2="${gy + 8}" stroke="${ink2}" stroke-width="1.3"/>`);
-    [14, 9, 4].forEach((wdt, i) => {
-      const yy = gy + 8 + i * 4;
-      parts.push(`<line x1="${gx - wdt / 2}" y1="${yy}" x2="${gx + wdt / 2}" y2="${yy}" stroke="${ink2}" stroke-width="1.3"/>`);
-    });
-
-    const ppcX = invCx + 30, ppcY = yMain + 95;
-    parts.push(`<rect x="${ppcX - 42}" y="${ppcY - 14}" width="84" height="28" rx="4" fill="#fff7ea" stroke="#c98500" stroke-width="1.3" stroke-dasharray="3,2"/>`);
-    parts.push(`<text x="${ppcX}" y="${ppcY + 4}" font-size="8.5" text-anchor="middle" fill="#8a5a00" font-weight="700">PPC — Control</text>`);
-    parts.push(`<line x1="${ppcX}" y1="${ppcY - 14}" x2="${txCx}" y2="${yMain + 14}" stroke="#c98500" stroke-width="1" stroke-dasharray="3,2"/>`);
-
-    parts.push("</svg>");
+    parts.push(`</svg>`);
     return parts.join("");
   }
   function reportSection(num, title, body, className = "") {
@@ -5572,18 +5570,46 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       button.addEventListener("click", async (event) => {
         event.preventDefault();
         event.stopImmediatePropagation();
-        const pdfUrl = button.dataset.reportUrl || "../output/pdf/reporte_resultados_ceme1.pdf";
-        setText("reportPdfStatus", "Buscando PDF automático...");
+        setText("reportPdfStatus", "Preparando PDF...");
         button.disabled = true;
+        let pdfCloneHost = null;
         try {
-          const response = await fetch(pdfUrl, { method: "HEAD", cache: "no-store" });
-          if (!response.ok) throw new Error(`PDF no disponible (${response.status})`);
-          window.open(pdfUrl, "_blank", "noopener");
-          setText("reportPdfStatus", "PDF automático disponible");
+          if (typeof window.html2pdf !== "function") {
+            throw new Error("La librería html2pdf.js no está disponible.");
+          }
+          const sourceDoc = byId("reportContent") || byId("view-reportes");
+          if (!sourceDoc) throw new Error("No se encontró el contenido del reporte.");
+
+          // Espera un frame para asegurar que Chart.js haya terminado de pintar los canvas.
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const cloned = await cloneReportForPdf(sourceDoc);
+          pdfCloneHost = cloned.host;
+
+          const opt = {
+            margin: [7, 7, 8, 7],
+            filename: "reporte_resultados_ceme1.pdf",
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: "#ffffff",
+              logging: false,
+              scrollX: 0,
+              scrollY: 0,
+              windowWidth: 740
+            },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
+            pagebreak: { mode: ["css", "legacy"], before: ".sa-page-break", avoid: [".sa-report-kpi", ".sa-report-chart", ".sa-arch-diagram", "tr"] }
+          };
+
+          setText("reportPdfStatus", "Generando PDF...");
+          await window.html2pdf().set(opt).from(cloned.clone).save();
+          setText("reportPdfStatus", "PDF descargado");
         } catch (error) {
-          console.warn("PDF automatico no disponible", error);
-          setText("reportPdfStatus", "Genera el PDF con: python scripts/generate_ceme1_report.py");
+          console.error("No se pudo generar el PDF del reporte", error);
+          setText("reportPdfStatus", `No se pudo generar el PDF: ${error.message || error}`);
         } finally {
+          if (pdfCloneHost && pdfCloneHost.parentNode) pdfCloneHost.parentNode.removeChild(pdfCloneHost);
           button.disabled = false;
         }
       }, true);

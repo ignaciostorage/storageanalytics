@@ -6,7 +6,8 @@
   <title>Storage Analytics | CEME1 FV + DUNE BESS</title>
   <link rel="stylesheet" href="dashboard.css?v=20260814-bloque1" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-  <script src="dashboard.js?v=20260814-bloque1" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"></script>
+  <script src="dashboard.js?v=20260816-reporte-pdf" defer></script>
   <style id="dashboard-live-fixes">
     .sim-strip {
       padding: 11px 16px;
@@ -1714,9 +1715,9 @@
             <span>PDF automático generado desde los JSON del proyecto.</span>
           </div>
           <div class="report-export-actions pdf-hide">
-            <button id="exportReportPdfBtn" class="report-export-btn" type="button" data-report-url="../output/pdf/reporte_resultados_ceme1.pdf">
+            <button id="exportReportPdfBtn" class="report-export-btn" type="button">
               <span>PDF</span>
-              Abrir PDF automático
+              Descargar PDF
             </button>
             <small id="reportPdfStatus" aria-live="polite"></small>
           </div>
