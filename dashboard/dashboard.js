@@ -4740,119 +4740,105 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     </g>`;
   }
   function buildUnifilarSvg(archKpis = {}) {
-    const W = 1240, H = 340;
-    const navy = "#1f4773", ink = "#273444", muted = "#68727d", teal = "#0fc8aa", amber = "#c98500";
+    const W = 1460, H = 410;
+    const navy = "#1f4773", ink = "#263442", muted = "#667586", teal = "#0fc8aa", amber = "#c98500", pale = "#f5f8fb";
     const modulos = fmtInt(archKpis.modulos);
     const strings = fmtInt(archKpis.strings);
     const inversores = fmtInt(archKpis.inversores);
-    const y = 154;
+    const y = 188;
     const parts = [];
-
-    const label = (x, yy, text, size = 10, weight = 400, color = ink, anchor = "middle") =>
+    const label = (x, yy, text, size = 13, weight = 400, color = ink, anchor = "middle") =>
       `<text x="${x}" y="${yy}" font-size="${size}" font-weight="${weight}" fill="${color}" text-anchor="${anchor}">${text}</text>`;
-    const line = (x1, y1, x2, y2, color = ink, width = 1.8, extra = "") =>
+    const line = (x1, y1, x2, y2, color = ink, width = 2, extra = "") =>
       `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" ${extra}/>`;
-    const ground = (x, gy) => [
-      line(x, gy, x, gy + 8, muted, 1.2),
-      line(x - 8, gy + 8, x + 8, gy + 8, muted, 1.2),
-      line(x - 5, gy + 12, x + 5, gy + 12, muted, 1.2),
-      line(x - 2, gy + 16, x + 2, gy + 16, muted, 1.2),
-    ].join("");
+    const tx3 = (cx, cy, r=22) => {
+      const c = [[0,-r*.55],[-r*.5,r*.4],[r*.5,r*.4]];
+      return c.map(([dx,dy])=>`<circle cx="${cx+dx}" cy="${cy+dy}" r="${r*.62}" fill="#fff" stroke="${navy}" stroke-width="2"/>`).join("");
+    };
+    parts.push(`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;background:#fff;border:1px solid #dbe4ee;border-radius:8px;font-family:Arial,Helvetica,sans-serif;">`);
+    parts.push(`<defs><marker id="saUfArrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${ink}"/></marker><pattern id="saUfPvHatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="8" stroke="#2a78d6" stroke-width="1.6"/></pattern></defs>`);
 
-    parts.push(`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;background:#fff;border:1px solid #e5e9f0;border-radius:6px;font-family:Arial,Helvetica,sans-serif;">`);
-    parts.push(`<defs>
-      <marker id="saUfArrow" markerWidth="8" markerHeight="8" refX="6.2" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${ink}"/></marker>
-      <pattern id="saUfPvHatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="7" stroke="#2a78d6" stroke-width="1.5"/></pattern>
-    </defs>`);
+    // Encabezados de nivel de tensión: ayudan a leer el unifilar sin añadir equipos no documentados.
+    [[95,"DC"],[270,"0,6 kV AC"],[650,"33 kV"],[1165,"220 kV"]].forEach(([x,t])=>{
+      parts.push(`<rect x="${x-58}" y="28" width="116" height="28" rx="14" fill="${pale}" stroke="#d7e1ec"/>`);
+      parts.push(label(x,47,t,12,700,navy));
+    });
 
     // Campo FV
-    const pvX = 38, pvW = 96;
-    parts.push(`<rect x="${pvX}" y="${y - 50}" width="${pvW}" height="100" rx="5" fill="url(#saUfPvHatch)" fill-opacity="0.24" stroke="${navy}" stroke-width="1.8"/>`);
-    parts.push(label(pvX + pvW/2, y + 70, "Campo FV", 12, 700));
-    parts.push(label(pvX + pvW/2, y + 86, `${modulos} módulos`, 9, 400, muted));
-    parts.push(label(pvX + pvW/2, y + 100, `${strings} strings`, 9, 400, muted));
-    parts.push(label(pvX + pvW/2, y - 66, "DC", 9, 700, muted));
+    parts.push(`<rect x="38" y="125" width="118" height="126" rx="7" fill="url(#saUfPvHatch)" fill-opacity=".22" stroke="${navy}" stroke-width="2"/>`);
+    parts.push(label(97,282,"Campo FV",15,700));
+    parts.push(label(97,303,`${modulos} módulos`,11,400,muted));
+    parts.push(label(97,320,`${strings} strings`,11,400,muted));
 
-    // Inversor
-    const invX = 196, invW = 66;
-    parts.push(line(pvX + pvW, y, invX - 14, y, ink, 1.8, 'marker-end="url(#saUfArrow)"'));
-    parts.push(`<rect x="${invX}" y="${y - 34}" width="${invW}" height="68" rx="6" fill="#eef5fb" stroke="${navy}" stroke-width="1.8"/>`);
-    parts.push(`<path d="M${invX+13},${y} q8,-15 16,0 t16,0" fill="none" stroke="${navy}" stroke-width="2"/>`);
-    parts.push(label(invX + invW/2, y + 56, "Inversores", 12, 700));
-    parts.push(label(invX + invW/2, y + 72, `${inversores} × Sungrow`, 9, 400, muted));
-    parts.push(label(invX + invW/2, y + 86, "SG3125HV-MV-30", 8.6, 400, muted));
-    parts.push(label(invX + invW/2, y - 50, "0,6 kV AC", 9, 700, muted));
+    // Inversores
+    parts.push(line(156,y,218,y,ink,2.2,'marker-end="url(#saUfArrow)"'));
+    parts.push(`<rect x="232" y="145" width="88" height="86" rx="8" fill="#eef5fb" stroke="${navy}" stroke-width="2"/>`);
+    parts.push(`<path d="M250,188 q10,-18 20,0 t20,0" fill="none" stroke="${navy}" stroke-width="2.5"/>`);
+    parts.push(label(276,272,"Inversores",15,700));
+    parts.push(label(276,293,`× ${inversores}`,12,700,navy));
+    parts.push(label(276,311,"Sungrow SG3125HV-MV-30",10.5,400,muted));
 
-    // CT
-    const ctX = 345;
-    parts.push(line(invX + invW, y, ctX - 35, y, ink, 1.8, 'marker-end="url(#saUfArrow)"'));
-    parts.push(unifilarTransformer3w(ctX, y, 22, navy));
-    parts.push(label(ctX, y + 58, "60 Centros de Transformación", 11, 700));
-    parts.push(label(ctX, y + 74, "Transf. bloque 3 dev.", 8.8, 400, muted));
-    parts.push(label(ctX, y + 88, "0,6 / 33 kV · 6,25 MVA", 8.8, 400, muted));
+    // Centros de transformación
+    parts.push(line(320,y,382,y,ink,2.2,'marker-end="url(#saUfArrow)"'));
+    parts.push(tx3(430,y,27));
+    parts.push(label(430,272,"Centros de transformación",14,700));
+    parts.push(label(430,293,"× 60 · 2 inversores/CT",11,700,navy));
+    parts.push(label(430,311,"0,6/33 kV · 6,25 MVA",10.5,400,muted));
 
-    // Red colectora 33 kV
-    const colX0 = 440, colX1 = 600;
-    parts.push(line(ctX + 30, y, colX0 - 14, y, ink, 1.8, 'marker-end="url(#saUfArrow)"'));
-    parts.push(line(colX0, y, colX1, y, navy, 5));
-    [468, 520, 572].forEach((bx) => parts.push(unifilarBreaker(bx, y, 7, ink)));
-    parts.push(label((colX0 + colX1)/2, y - 18, "Red colectora 33 kV", 11, 700));
-    parts.push(label((colX0 + colX1)/2, y + 24, "20 circuitos colectores", 9, 400, muted));
-    // Banco de condensadores, derivación inferior
-    const capX = 555;
-    parts.push(line(capX, y, capX, y + 32, muted, 1.3));
-    parts.push(unifilarCapBank(capX, y + 32, muted));
-    parts.push(label(capX, y + 82, "4 × banco · 10 MVAr", 8.5, 400, muted));
+    // Red colectora, sin dibujar interruptores/protecciones no documentados.
+    parts.push(line(472,y,535,y,ink,2.2,'marker-end="url(#saUfArrow)"'));
+    parts.push(line(550,y,720,y,navy,6));
+    parts.push(label(635,155,"Red colectora 33 kV",14,700));
+    parts.push(label(635,218,"20 circuitos · 3 CT/circuito",11,400,muted));
+    // Bancos de compensación como derivación funcional documentada.
+    parts.push(line(665,y,665,248,muted,1.6));
+    parts.push(line(650,248,680,248,muted,1.6));
+    parts.push(line(650,256,680,256,muted,1.6));
+    parts.push(label(665,278,"4 bancos × 10 MVAr",10.5,400,muted));
 
-    // 4 barras 33kV representadas claramente
-    const busX = 676, busLen = 42;
-    parts.push(line(colX1, y, busX - 24, y, ink, 1.8, 'marker-end="url(#saUfArrow)"'));
-    [-30,-10,10,30].forEach((dy) => {
-      parts.push(line(busX, y+dy, busX+busLen, y+dy, navy, 5));
-      parts.push(line(busX-24, y, busX, y+dy, muted, 1.2));
+    // Cuatro barras principales de 33 kV.
+    parts.push(line(720,y,770,y,ink,2.2,'marker-end="url(#saUfArrow)"'));
+    [-39,-13,13,39].forEach((dy)=>{
+      parts.push(line(795,y+dy,855,y+dy,navy,6));
+      parts.push(line(770,y,795,y+dy,muted,1.5));
     });
-    parts.push(label(busX + busLen/2, y - 48, "4 barras", 10, 700));
-    parts.push(label(busX + busLen/2, y + 52, "33 kV", 9, 400, muted));
+    parts.push(label(825,120,"4 barras principales",13,700));
+    parts.push(label(825,282,"33 kV",11,400,muted));
 
-    // Dos transformadores principales en paralelo hacia bus común 220 kV
-    const txpX = 818;
-    [-22,22].forEach((dy) => {
-      parts.push(line(busX + busLen, y+dy/1.4, txpX - 38, y+dy, muted, 1.4));
-      parts.push(unifilarTransformer3w(txpX, y+dy, 20, navy));
-      parts.push(line(txpX + 31, y+dy, 890, y+dy, muted, 1.4));
-      parts.push(line(890, y+dy, 900, y, muted, 1.4));
+    // Transformadores principales.
+    const txX=970;
+    [-28,28].forEach((dy)=>{
+      parts.push(line(855,y+dy*.7,txX-42,y+dy,muted,1.7));
+      parts.push(tx3(txX,y+dy,25));
+      parts.push(line(txX+38,y+dy,1042,y+dy,muted,1.7));
+      parts.push(line(1042,y+dy,1055,y,muted,1.7));
     });
-    parts.push(label(txpX, y + 80, "2 Transformadores principales", 11, 700));
-    parts.push(label(txpX, y + 96, "220 / 33 / 33 kV", 8.8, 400, muted));
-    parts.push(label(txpX, y + 110, "150 / 200 / 250 MVA", 8.8, 400, muted));
+    parts.push(label(txX,292,"Transformadores principales × 2",14,700));
+    parts.push(label(txX,311,"220/33/33 kV · 150/200/250 MVA",10.5,400,muted));
 
-    // Barra y S/E CEME1
-    const seX = 936;
-    parts.push(line(900, y, seX - 14, y, ink, 1.8, 'marker-end="url(#saUfArrow)"'));
-    parts.push(line(seX, y-34, seX, y+34, navy, 6));
-    parts.push(label(seX, y - 48, "S/E CEME1", 10, 700));
-    parts.push(label(seX, y + 52, "220 kV", 9, 400, muted));
+    // S/E CEME1 y conexión a Mirage.
+    parts.push(line(1055,y,1100,y,ink,2.2,'marker-end="url(#saUfArrow)"'));
+    parts.push(line(1120,145,1120,231,navy,7));
+    parts.push(label(1120,126,"S/E CEME1",13,700));
+    parts.push(label(1120,254,"220 kV",11,400,muted));
+    parts.push(line(1125,y,1280,y,teal,2.8,'stroke-dasharray="10,6" marker-end="url(#saUfArrow)"'));
+    parts.push(label(1205,160,"Línea propia 1 × 220 kV",11,700,"#0a8a71"));
+    parts.push(label(1205,219,"≈ 9,2 km",11,400,"#0a8a71"));
+    parts.push(`<rect x="1295" y="147" width="128" height="82" rx="9" fill="#eafaf5" stroke="${teal}" stroke-width="2.2"/>`);
+    parts.push(label(1359,181,"S/E Mirage",15,700));
+    parts.push(label(1359,203,"220 kV · SEN",12,400,muted));
 
-    // Línea 220 kV a Mirage
-    const mirX = 1090;
-    parts.push(line(seX + 5, y, mirX - 28, y, teal, 2.2, 'stroke-dasharray="8,5" marker-end="url(#saUfArrow)"'));
-    parts.push(label((seX + mirX)/2, y - 18, "1 × 220 kV", 9, 700, "#0a8a71"));
-    parts.push(label((seX + mirX)/2, y + 25, "≈ 9,2 km", 9, 400, "#0a8a71"));
-    parts.push(`<rect x="${mirX}" y="${y - 33}" width="108" height="66" rx="7" fill="#eafaf5" stroke="${teal}" stroke-width="1.8"/>`);
-    parts.push(label(mirX + 54, y - 4, "S/E Mirage", 12, 700));
-    parts.push(label(mirX + 54, y + 14, "220 kV · SEN", 10, 400, muted));
-    parts.push(ground(mirX + 54, y + 33));
-
-    // PPC: circuito de control claramente separado del camino de potencia
-    const ppcX = 250, ppcY = 286;
-    parts.push(`<rect x="${ppcX - 58}" y="${ppcY - 17}" width="116" height="34" rx="5" fill="#fff7ea" stroke="${amber}" stroke-width="1.4" stroke-dasharray="4,3"/>`);
-    parts.push(label(ppcX, ppcY + 4, "PPC — Control de planta", 9.5, 700, "#8a5a00"));
-    parts.push(line(ppcX, ppcY - 17, invX + invW/2, y + 36, amber, 1.2, 'stroke-dasharray="4,3"'));
-    parts.push(line(ppcX + 34, ppcY - 17, seX, y + 36, amber, 1.0, 'stroke-dasharray="4,3" opacity="0.65"'));
+    // PPC separado del circuito de potencia.
+    parts.push(`<rect x="225" y="352" width="174" height="36" rx="6" fill="#fff8eb" stroke="${amber}" stroke-width="1.6" stroke-dasharray="5,4"/>`);
+    parts.push(label(312,375,"PPC · Control de planta",11,700,"#8a5a00"));
+    parts.push(line(312,352,276,233,amber,1.4,'stroke-dasharray="5,4"'));
+    parts.push(line(399,370,1120,233,amber,1.2,'stroke-dasharray="5,4" opacity=".65"'));
+    parts.push(label(1135,371,"Señal de control",10,400,"#8a5a00","start"));
 
     parts.push(`</svg>`);
     return parts.join("");
   }
+
   function reportSection(num, title, body, className = "") {
     const autoClass = num === "1." ? "" : "sa-page-break";
     const specialClass = num === "6." ? "sa-conclusion-section" : num === "A." ? "sa-annex-section" : "";
@@ -5563,7 +5549,12 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     if (typeof window.html2canvas !== "function") throw new Error("html2canvas no esta disponible.");
     if (!window.jspdf || typeof window.jspdf.jsPDF !== "function") throw new Error("jsPDF no esta disponible.");
 
-    const cloned = await cloneReportForPdf(sourceDoc);
+    const reportRoot = sourceDoc?.classList?.contains("sa-report-doc")
+      ? sourceDoc
+      : (sourceDoc?.querySelector?.(".sa-report-doc") || sourceDoc);
+    if (!reportRoot) throw new Error("No se encontro el documento interno del reporte.");
+
+    const cloned = await cloneReportForPdf(reportRoot);
     try {
       if (document.fonts?.ready) await document.fonts.ready;
       const images = Array.from(cloned.clone.querySelectorAll("img"));
@@ -5574,8 +5565,8 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
 
       const exportWidth = 794;
       const header = cloned.clone.querySelector(".sa-report-main-title");
-      const sections = Array.from(cloned.clone.querySelectorAll(":scope > .sa-report-section"));
-      const footer = cloned.clone.querySelector(":scope > .sa-report-footer");
+      const sections = Array.from(cloned.clone.children).filter((el) => el.classList?.contains("sa-report-section"));
+      const footer = Array.from(cloned.clone.children).find((el) => el.classList?.contains("sa-report-footer")) || cloned.clone.querySelector(".sa-report-footer");
       const units = [];
 
       // Primera unidad: portada/titulo + seccion 1. El resto comienza siempre en pagina nueva.
@@ -5592,6 +5583,9 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         unit.appendChild(sections[i].cloneNode(true));
         if (i === sections.length - 1 && footer) unit.appendChild(footer.cloneNode(true));
         units.push(unit);
+      }
+      if (!sections.length) {
+        throw new Error("El reporte no contiene secciones exportables. Se cancela la descarga para evitar un PDF incompleto.");
       }
       if (!units.length) units.push(cloned.clone);
 
@@ -5696,7 +5690,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         setText("reportPdfStatus", "Preparando PDF...");
         button.disabled = true;
         try {
-          const sourceDoc = byId("reportContent") || byId("view-reportes");
+          const sourceDoc = byId("saReportDoc") || byId("reportContent")?.querySelector(".sa-report-doc") || byId("reportContent") || byId("view-reportes");
           if (!sourceDoc) throw new Error("No se encontro el contenido del reporte.");
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           setText("reportPdfStatus", "Generando PDF...");
