@@ -5488,6 +5488,22 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       el.id = `${el.id}PdfClone`;
     });
 
+    // El clon PDF tiene un ancho fijo A4-proporcional y no hereda desplazamientos del dashboard.
+    Object.assign(clone.style, {
+      width: "794px",
+      minWidth: "794px",
+      maxWidth: "794px",
+      margin: "0",
+      padding: "20px 22px",
+      position: "relative",
+      left: "0",
+      top: "0",
+      transform: "none",
+      overflow: "visible",
+      boxSizing: "border-box",
+      background: "#ffffff"
+    });
+
     const sourceCanvases = Array.from(sourceDoc.querySelectorAll("canvas"));
     const cloneCanvases = Array.from(clone.querySelectorAll("canvas"));
     sourceCanvases.forEach((canvas, index) => {
@@ -5497,18 +5513,13 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         const img = document.createElement("img");
         img.src = canvas.toDataURL("image/png", 1);
         img.alt = canvas.getAttribute("aria-label") || "Grafico del reporte";
-        img.style.display = "block";
-        img.style.width = "100%";
-        img.style.height = "100%";
-        img.style.objectFit = "contain";
+        Object.assign(img.style, { display: "block", width: "100%", height: "100%", objectFit: "contain" });
         cloneCanvas.replaceWith(img);
       } catch (error) {
         console.warn("No se pudo convertir un grafico del reporte a imagen para PDF:", error);
       }
     });
 
-    // html2canvas no interpreta de forma confiable SVG en linea (patrones, marcadores, texto);
-    // se rasteriza el diagrama unifilar a PNG antes de la exportacion, igual que los graficos Chart.js.
     const sourceSvgs = Array.from(sourceDoc.querySelectorAll(".sa-arch-diagram svg"));
     const cloneSvgs = Array.from(clone.querySelectorAll(".sa-arch-diagram svg"));
     for (let index = 0; index < sourceSvgs.length; index += 1) {
@@ -5517,13 +5528,11 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       if (!cloneSvg) continue;
       try {
         const rect = svg.getBoundingClientRect();
-        const dataUrl = await svgToPngDataUrl(svg, rect.width || 700);
+        const dataUrl = await svgToPngDataUrl(svg, Math.max(1100, rect.width || 760));
         const img = document.createElement("img");
         img.src = dataUrl;
         img.alt = "Diagrama unifilar CEME1";
-        img.style.display = "block";
-        img.style.width = "100%";
-        img.style.height = "auto";
+        Object.assign(img.style, { display: "block", width: "100%", height: "auto", objectFit: "contain" });
         cloneSvg.replaceWith(img);
       } catch (error) {
         console.warn("No se pudo convertir el diagrama unifilar a imagen para PDF:", error);
@@ -5532,18 +5541,132 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
 
     const host = document.createElement("div");
     host.className = "sa-pdf-export-host";
-    host.style.position = "fixed";
-    host.style.left = "0";
-    host.style.top = "0";
-    host.style.zIndex = "99999";
-    host.style.width = "740px";
-    host.style.maxWidth = "740px";
-    host.style.background = "#ffffff";
-    host.style.overflow = "visible";
-    host.style.pointerEvents = "none";
+    Object.assign(host.style, {
+      position: "absolute",
+      left: "0",
+      top: `${Math.max(document.body.scrollHeight + 100, 10000)}px`,
+      width: "794px",
+      minWidth: "794px",
+      maxWidth: "794px",
+      background: "#ffffff",
+      overflow: "visible",
+      pointerEvents: "none",
+      transform: "none",
+      zIndex: "-1"
+    });
     host.appendChild(clone);
     document.body.appendChild(host);
     return { host, clone };
+  }
+
+  async function exportReportPdfReliable(sourceDoc, filename) {
+    if (typeof window.html2canvas !== "function") throw new Error("html2canvas no esta disponible.");
+    if (!window.jspdf || typeof window.jspdf.jsPDF !== "function") throw new Error("jsPDF no esta disponible.");
+
+    const cloned = await cloneReportForPdf(sourceDoc);
+    try {
+      if (document.fonts?.ready) await document.fonts.ready;
+      const images = Array.from(cloned.clone.querySelectorAll("img"));
+      await Promise.all(images.map((img) => img.complete ? Promise.resolve() : new Promise((resolve) => {
+        img.onload = img.onerror = () => resolve();
+      })));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+      const exportWidth = 794;
+      const header = cloned.clone.querySelector(".sa-report-main-title");
+      const sections = Array.from(cloned.clone.querySelectorAll(":scope > .sa-report-section"));
+      const footer = cloned.clone.querySelector(":scope > .sa-report-footer");
+      const units = [];
+
+      // Primera unidad: portada/titulo + seccion 1. El resto comienza siempre en pagina nueva.
+      if (header || sections[0]) {
+        const first = document.createElement("div");
+        first.className = "sa-report-doc sa-pdf-export-doc pdf-export-mode sa-pdf-unit";
+        if (header) first.appendChild(header.cloneNode(true));
+        if (sections[0]) first.appendChild(sections[0].cloneNode(true));
+        units.push(first);
+      }
+      for (let i = 1; i < sections.length; i += 1) {
+        const unit = document.createElement("div");
+        unit.className = "sa-report-doc sa-pdf-export-doc pdf-export-mode sa-pdf-unit";
+        unit.appendChild(sections[i].cloneNode(true));
+        if (i === sections.length - 1 && footer) unit.appendChild(footer.cloneNode(true));
+        units.push(unit);
+      }
+      if (!units.length) units.push(cloned.clone);
+
+      const unitHost = document.createElement("div");
+      Object.assign(unitHost.style, {
+        position: "absolute", left: "0", top: `${Math.max(document.body.scrollHeight + 100, 20000)}px`,
+        width: `${exportWidth}px`, background: "#fff", zIndex: "-2", pointerEvents: "none"
+      });
+      document.body.appendChild(unitHost);
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+      const pageW = 210, pageH = 297, marginX = 7, marginY = 7;
+      const usableW = pageW - 2 * marginX, usableH = pageH - 2 * marginY;
+      let pageCount = 0;
+
+      const addCanvasToPdf = (canvas, forceNewPage) => {
+        const pxPerMm = canvas.width / usableW;
+        const pageSlicePx = Math.floor(usableH * pxPerMm);
+        let sourceY = 0;
+        let localPage = 0;
+        while (sourceY < canvas.height) {
+          const sliceH = Math.min(pageSlicePx, canvas.height - sourceY);
+          const pageCanvas = document.createElement("canvas");
+          pageCanvas.width = canvas.width;
+          pageCanvas.height = sliceH;
+          const ctx = pageCanvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+          if (pageCount > 0 || forceNewPage || localPage > 0) pdf.addPage();
+          const imgH = sliceH / pxPerMm;
+          pdf.addImage(pageCanvas.toDataURL("image/jpeg", 0.97), "JPEG", marginX, marginY, usableW, imgH, undefined, "FAST");
+          sourceY += sliceH;
+          localPage += 1;
+          pageCount += 1;
+          forceNewPage = false;
+        }
+      };
+
+      for (let index = 0; index < units.length; index += 1) {
+        const unit = units[index];
+        Object.assign(unit.style, {
+          width: `${exportWidth}px`, minWidth: `${exportWidth}px`, maxWidth: `${exportWidth}px`,
+          margin: "0", padding: "18px 20px", boxSizing: "border-box", background: "#fff",
+          transform: "none", overflow: "visible"
+        });
+        // Anula page-break CSS dentro de cada unidad; nosotros controlamos las paginas.
+        unit.querySelectorAll(".sa-page-break,.sa-subbreak").forEach((el) => {
+          el.style.breakBefore = "auto";
+          el.style.pageBreakBefore = "auto";
+        });
+        unitHost.appendChild(unit);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const height = Math.ceil(unit.scrollHeight);
+        const canvas = await window.html2canvas(unit, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: "#ffffff",
+          logging: false,
+          x: 0, y: 0, scrollX: 0, scrollY: 0,
+          width: exportWidth, height,
+          windowWidth: exportWidth,
+          windowHeight: Math.max(height, 1123)
+        });
+        addCanvasToPdf(canvas, index > 0);
+        unit.remove();
+      }
+      unitHost.remove();
+      // jsPDF crea una pagina inicial vacia; si no se uso, ya fue ocupada por la primera imagen.
+      pdf.save(filename || "reporte_resultados_ceme1.pdf");
+    } finally {
+      if (cloned.host?.parentNode) cloned.host.parentNode.removeChild(cloned.host);
+    }
   }
 
   async function renderReportesViewPatched() {
@@ -5572,44 +5695,17 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         event.stopImmediatePropagation();
         setText("reportPdfStatus", "Preparando PDF...");
         button.disabled = true;
-        let pdfCloneHost = null;
         try {
-          if (typeof window.html2pdf !== "function") {
-            throw new Error("La librería html2pdf.js no está disponible.");
-          }
           const sourceDoc = byId("reportContent") || byId("view-reportes");
-          if (!sourceDoc) throw new Error("No se encontró el contenido del reporte.");
-
-          // Espera un frame para asegurar que Chart.js haya terminado de pintar los canvas.
+          if (!sourceDoc) throw new Error("No se encontro el contenido del reporte.");
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          const cloned = await cloneReportForPdf(sourceDoc);
-          pdfCloneHost = cloned.host;
-
-          const opt = {
-            margin: [7, 7, 8, 7],
-            filename: "reporte_resultados_ceme1.pdf",
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: {
-              scale: 2,
-              useCORS: true,
-              backgroundColor: "#ffffff",
-              logging: false,
-              scrollX: 0,
-              scrollY: 0,
-              windowWidth: 740
-            },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
-            pagebreak: { mode: ["css", "legacy"], before: ".sa-page-break", avoid: [".sa-report-kpi", ".sa-report-chart", ".sa-arch-diagram", "tr"] }
-          };
-
           setText("reportPdfStatus", "Generando PDF...");
-          await window.html2pdf().set(opt).from(cloned.clone).save();
+          await exportReportPdfReliable(sourceDoc, "reporte_resultados_ceme1.pdf");
           setText("reportPdfStatus", "PDF descargado");
         } catch (error) {
           console.error("No se pudo generar el PDF del reporte", error);
           setText("reportPdfStatus", `No se pudo generar el PDF: ${error.message || error}`);
         } finally {
-          if (pdfCloneHost && pdfCloneHost.parentNode) pdfCloneHost.parentNode.removeChild(pdfCloneHost);
           button.disabled = false;
         }
       }, true);
