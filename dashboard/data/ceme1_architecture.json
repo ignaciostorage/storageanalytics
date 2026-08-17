@@ -20,6 +20,61 @@
     "modulos_por_string": 30,
     "submodelos": 6
   },
+  "arquitectura_electrica": {
+    "campo_fv": {
+      "nivel": "DC",
+      "modulos": 882720,
+      "strings": 29424,
+      "potencia_dc_mwp": 480.1896
+    },
+    "inversores": {
+      "cantidad": 120,
+      "modelo": "Sungrow SG3125HV-MV-30",
+      "salida_kv_ac": 0.6
+    },
+    "centros_transformacion": {
+      "cantidad": 60,
+      "inversores_por_centro": 2,
+      "tipo_transformador": "bloque_tres_devanados",
+      "relacion_kv": "0,6 / 33",
+      "mva_nominal": 6.25
+    },
+    "red_colectora": {
+      "nivel_kv": 33,
+      "circuitos": 20,
+      "centros_por_circuito": 3
+    },
+    "compensacion_reactiva": {
+      "bancos": 4,
+      "mvar_por_banco": 10
+    },
+    "barras_33kv": {
+      "cantidad": 4,
+      "nivel_kv": 33
+    },
+    "transformadores_principales": {
+      "cantidad": 2,
+      "tipo": "tres_devanados",
+      "relacion_kv": "220 / 33 / 33",
+      "capacidades_mva_por_refrigeracion": [150, 200, 250]
+    },
+    "subestacion": {
+      "nombre": "S/E CEME1",
+      "nivel_kv": 220
+    },
+    "conexion": {
+      "tipo": "linea_propia",
+      "circuitos": 1,
+      "nivel_kv": 220,
+      "longitud_km_aprox": 9.2,
+      "destino": "S/E Mirage 220 kV",
+      "sistema": "SEN"
+    },
+    "control": {
+      "nombre": "PPC",
+      "descripcion": "Control de planta representado como circuito de control separado del camino principal de potencia"
+    }
+  },
   "familias": [
     {
       "familia": "A",

@@ -5572,58 +5572,18 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       button.addEventListener("click", async (event) => {
         event.preventDefault();
         event.stopImmediatePropagation();
-        const sourceDoc = byId("saReportDoc");
-        if (!sourceDoc || typeof html2pdf === "undefined") return;
-        setText("reportPdfStatus", "Generando PDF...");
+        const pdfUrl = button.dataset.reportUrl || "../output/pdf/reporte_resultados_ceme1.pdf";
+        setText("reportPdfStatus", "Buscando PDF automático...");
         button.disabled = true;
-        let exportHost = null;
         try {
-          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          const prepared = await cloneReportForPdf(sourceDoc);
-          exportHost = prepared.host;
-          const target = prepared.clone;
-          const pdfWorker = html2pdf().set({
-            margin: [7, 8, 8, 8],
-            filename: "reporte_tecnico_ceme1_fv_cen.pdf",
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: {
-              scale: 2,
-              useCORS: true,
-              backgroundColor: "#ffffff",
-              windowWidth: 740,
-              width: 740,
-              scrollX: 0,
-              scrollY: 0,
-              x: 0,
-              y: 0,
-            },
-            jsPDF: { unit: "mm", format: "letter", orientation: "portrait" },
-            pagebreak: {
-              mode: ["css", "legacy"],
-              before: [".sa-page-break", ".sa-subbreak"],
-              avoid: [".sa-report-section h2", ".sa-section-body", ".sa-report-chart", ".sa-report-table", ".sa-report-table tr", ".sa-report-kpi", ".sa-report-decision", ".sa-report-two-col", ".sa-report-kpi-row", ".sa-stat-row", ".sa-arch-diagram"],
-            },
-          }).from(target).toPdf();
-          await pdfWorker.get("pdf").then((pdf) => {
-            const pageCount = pdf.internal.getNumberOfPages();
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            for (let page = 1; page <= pageCount; page += 1) {
-              pdf.setPage(page);
-              pdf.setTextColor(15, 39, 66);
-              pdf.setFontSize(7);
-              pdf.text("Storage Analytics | Reporte Técnico CEME1", 8, 5);
-              pdf.text(`Pagina ${page} de ${pageCount}`, pageWidth - 8, pageHeight - 5, { align: "right" });
-              pdf.text("Storage Analytics - CEME1 FV + BESS", 8, pageHeight - 5);
-            }
-          });
-          await pdfWorker.save();
-          setText("reportPdfStatus", "PDF generado correctamente");
+          const response = await fetch(pdfUrl, { method: "HEAD", cache: "no-store" });
+          if (!response.ok) throw new Error(`PDF no disponible (${response.status})`);
+          window.open(pdfUrl, "_blank", "noopener");
+          setText("reportPdfStatus", "PDF automático disponible");
         } catch (error) {
-          console.error("No se pudo generar el PDF del reporte", error);
-          setText("reportPdfStatus", "No se pudo generar el PDF");
+          console.warn("PDF automatico no disponible", error);
+          setText("reportPdfStatus", "Genera el PDF con: python scripts/generate_ceme1_report.py");
         } finally {
-          if (exportHost) exportHost.remove();
           button.disabled = false;
         }
       }, true);
