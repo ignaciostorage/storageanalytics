@@ -3791,1126 +3791,6 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
 
 
 /* ============================================================
-   REPORTE BLOQUE 1 + EXPORTACIÓN PDF
-   ============================================================ */
-(function () {
-  const REPORT_DATA_URLS = {
-    validationBundle: "data/validacion_fv_ceme1_dashboard_bundle.json",
-    validationLite: "data/validacion_fv_ceme1_dashboard_lite.json",
-    profileBundle: "data/perfil_este_oeste_sam_dashboard_bundle.json",
-    profileLite: "data/perfil_este_oeste_sam_dashboard_lite.json",
-    tmy: "data/validacion_fv_ceme1_dashboard_bundle.json",
-    nasa: "data/validacion_fv_ceme1_dashboard_bundle.json",
-    compare: "data/validacion_fv_ceme1_dashboard_bundle.json",
-    samCen: "data/validacion_fv_ceme1_dashboard_bundle.json",
-  };
-
-  const reportState = {
-    loaded: false,
-    bundles: null,
-    monthlyChart: null,
-    waterfallChart: null,
-    profileChart: null,
-    rendering: false,
-  };
-  const PDF_EXPORT_WIDTH_PX = 740;
-
-  function byId(id) {
-    return document.getElementById(id);
-  }
-
-  function setText(id, value) {
-    const el = byId(id);
-    if (el) el.textContent = value;
-  }
-
-  function formatNumber(value, decimals = 1) {
-    if (value === null || value === undefined || Number.isNaN(Number(value))) return "--";
-    return Number(value).toLocaleString("es-CL", {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-  }
-
-  function formatAvailable(value, decimals = 1) {
-    if (value === null || value === undefined || Number.isNaN(Number(value))) return "Dato no disponible";
-    return formatNumber(value, decimals);
-  }
-
-  function annualDisplayDelta(a, b) {
-    const left = Number(a);
-    const right = Number(b);
-    if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
-    return Number(left.toFixed(1)) - Number(right.toFixed(1));
-  }
-
-  function formatInteger(value) {
-    if (value === null || value === undefined || Number.isNaN(Number(value))) return "--";
-    return Number(value).toLocaleString("es-CL", { maximumFractionDigits: 0 });
-  }
-
-  function formatDateTime(date = new Date()) {
-    return date.toLocaleString("es-CL", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  function findCase(rows, pattern) {
-    return Array.isArray(rows)
-      ? rows.find((row) => pattern.test(`${row.caso || ""} ${row.caso_sam || ""} ${row.fuente_meteorologica || ""}`)) || {}
-      : {};
-  }
-
-  function normalizeKey(key) {
-    return String(key || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "");
-  }
-
-  function getField(obj, candidates) {
-    if (!obj || typeof obj !== "object") return undefined;
-    const direct = candidates.find((key) => Object.prototype.hasOwnProperty.call(obj, key));
-    if (direct) return obj[direct];
-
-    const normalized = new Map(Object.keys(obj).map((key) => [normalizeKey(key), key]));
-    const match = candidates
-      .map(normalizeKey)
-      .map((key) => normalized.get(key))
-      .find(Boolean);
-
-    return match ? obj[match] : undefined;
-  }
-
-  function findFieldByTokens(obj, tokenGroups) {
-    if (!obj || typeof obj !== "object") return undefined;
-    const keys = Object.keys(obj);
-    const found = keys.find((key) => {
-      const normalized = normalizeKey(key);
-      return tokenGroups.every((group) => group.some((token) => normalized.includes(normalizeKey(token))));
-    });
-    return found ? obj[found] : undefined;
-  }
-
-  function readNumber(obj, candidates, tokenGroups = []) {
-    let value = getField(obj, candidates);
-    if (value === undefined && tokenGroups.length) value = findFieldByTokens(obj, tokenGroups);
-    const number = Number(value);
-    return Number.isFinite(number) ? number : null;
-  }
-
-  function readEnergyGwh(obj, candidates, tokenGroups = []) {
-    let value;
-    let sourceKey = candidates.find((key) => Object.prototype.hasOwnProperty.call(obj || {}, key));
-
-    if (sourceKey) {
-      value = obj[sourceKey];
-    } else if (obj && typeof obj === "object") {
-      const normalized = new Map(Object.keys(obj).map((key) => [normalizeKey(key), key]));
-      const normalizedKey = candidates.map(normalizeKey).map((key) => normalized.get(key)).find(Boolean);
-      sourceKey = normalizedKey;
-      value = normalizedKey ? obj[normalizedKey] : undefined;
-    }
-
-    if (value === undefined && tokenGroups.length && obj && typeof obj === "object") {
-      sourceKey = Object.keys(obj).find((key) => {
-        const normalized = normalizeKey(key);
-        return tokenGroups.every((group) => group.some((token) => normalized.includes(normalizeKey(token))));
-      });
-      value = sourceKey ? obj[sourceKey] : undefined;
-    }
-
-    const number = Number(value);
-    if (!Number.isFinite(number)) return null;
-    return /(^|_)mwh($|_)/i.test(normalizeKey(sourceKey)) ? number / 1000 : number;
-  }
-
-  function asArray(value) {
-    if (Array.isArray(value)) return value;
-    if (value && typeof value === "object") {
-      return Object.entries(value).map(([key, row]) =>
-        row && typeof row === "object" ? { nombre: key, comparacion: key, ...row } : { nombre: key, valor: row }
-      );
-    }
-    return [];
-  }
-
-  function addRows(tbodyId, rows) {
-    const tbody = byId(tbodyId);
-    if (!tbody) return;
-    tbody.replaceChildren();
-
-    rows.forEach((cells) => {
-      const tr = document.createElement("tr");
-      cells.forEach((cell) => {
-        const td = document.createElement("td");
-        td.textContent = cell ?? "--";
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-  }
-
-  async function loadJson(url) {
-    const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status} al cargar ${url}`);
-    return response.json();
-  }
-
-  async function loadOptionalJson(url) {
-    try {
-      return await loadJson(url);
-    } catch (error) {
-      console.warn(error.message || error);
-      return null;
-    }
-  }
-
-  async function loadOptionalJsonWithFallback(primaryPath, fallbackPath = null) {
-    try {
-      return await loadJsonWithFallback(primaryPath, fallbackPath);
-    } catch (error) {
-      console.warn(error.message || error);
-      return null;
-    }
-  }
-
-  async function loadReportBundles() {
-    if (reportState.loaded && reportState.bundles) return reportState.bundles;
-
-    console.log("Cargando reporte Bloque 1...");
-
-    const [validationBundle, profileBundle] = await Promise.all([
-      loadOptionalJsonWithFallback(REPORT_DATA_URLS.validationBundle, REPORT_DATA_URLS.validationLite),
-      loadOptionalJsonWithFallback(REPORT_DATA_URLS.profileBundle, REPORT_DATA_URLS.profileLite),
-    ]);
-
-    if (validationBundle) {
-      console.log("JSON SAM/CEN cargado correctamente");
-      console.log("KPIs detectados:", Object.keys(validationBundle.kpis || {}));
-      console.log("Filas mensuales detectadas:", asArray(validationBundle.mensual).length);
-      console.log("Métricas detectadas:", asArray(validationBundle.metricas || validationBundle.indicadores).length);
-      setText("reportPdfStatus", "");
-      reportState.bundles = { validation: validationBundle, profile: profileBundle };
-      reportState.loaded = true;
-      return reportState.bundles;
-    }
-
-    const [tmy, nasa, compare, samCen] = await Promise.all([
-      loadJson(REPORT_DATA_URLS.tmy),
-      loadJson(REPORT_DATA_URLS.nasa),
-      loadJson(REPORT_DATA_URLS.compare),
-      loadJson(REPORT_DATA_URLS.samCen),
-    ]);
-
-    console.warn("JSON SAM/CEN no encontrado; usando bundles actuales del dashboard para Reportes.");
-    setText("reportPdfStatus", "JSON SAM/CEN no encontrado; usando bundles actuales.");
-    console.log("KPIs detectados:", Object.keys({ ...(nasa.kpis || {}), ...(samCen.cen_kpis || {}) }));
-    console.log("Filas mensuales detectadas:", asArray(samCen.mensual).length);
-    console.log("Métricas detectadas:", asArray(samCen.indicadores).length);
-    reportState.bundles = { tmy, nasa, compare, samCen };
-    reportState.loaded = true;
-    return reportState.bundles;
-  }
-
-  function renderReportHeader() {
-    setText("reportGeneratedAt", formatDateTime());
-  }
-
-  function validationKpiValue(kpis, key) {
-    const map = {
-      samNasa: {
-        candidates: ["energia_anual_sam_nasa_2025_gwh", "sam_nasa_2025_gwh", "sam_nasa_2025_anual_gwh", "energia_sam_nasa_2025_gwh", "sam_nasa_2025_mwh", "sam_nasa_mwh"],
-        tokens: [["sam"], ["nasa"], ["gwh", "mwh", "energia"]],
-      },
-      samTmy: {
-        candidates: ["energia_anual_sam_tmy_explorador_solar_gwh", "energia_sam_tmy_gwh", "sam_tmy_explorador_solar_gwh", "sam_tmy_gwh", "sam_tmy_mwh"],
-        tokens: [["sam"], ["tmy"], ["gwh", "mwh", "energia"]],
-      },
-      centralizado: {
-        candidates: ["energia_anual_pronostico_centralizado_cen_gwh", "energia_pronostico_centralizado_cen_gwh", "pronostico_centralizado_cen_gwh", "centralizado_cen_gwh", "pronostico_centralizado_cen_mwh"],
-        tokens: [["pronostico", "centralizado"], ["cen"], ["gwh", "mwh", "energia"]],
-      },
-      cenDisponible: {
-        candidates: ["cen_disponible_anual_gwh", "energia_cen_disponible_gwh", "cen_disponible_gwh", "energia_disponible_cen_gwh", "cen_disponible_mwh"],
-        tokens: [["cen"], ["disponible"], ["gwh", "mwh", "energia"]],
-      },
-      generacionReal: {
-        candidates: ["generacion_real_cen_anual_gwh", "energia_generacion_real_cen_gwh", "generacion_real_cen_gwh", "energia_inyectada_cen_gwh", "cen_inyeccion_gwh", "generacion_real_cen_mwh"],
-        tokens: [["generacion", "inyeccion"], ["real", "cen"], ["gwh", "mwh", "energia"]],
-      },
-      reducciones: {
-        candidates: ["reducciones_cen_anuales_gwh", "energia_reducciones_cen_gwh", "reducciones_cen_gwh", "energia_curtailment_cen_gwh", "cen_curtailment_gwh", "reducciones_cen_mwh"],
-        tokens: [["reducciones", "curtailment"], ["cen"], ["gwh", "mwh", "energia"]],
-      },
-      residuo: {
-        candidates: ["residuo_sam_nasa_vs_cen_disponible_gwh", "residuo_sam_nasa_2025_menos_cen_disponible_gwh", "sam_nasa_menos_cen_disponible_gwh", "residuo_sam_cen_disponible_gwh", "residuo_sam_nasa_2025_menos_cen_disponible_mwh"],
-        tokens: [["residuo", "diferencia"], ["sam"], ["cen"], ["disponible"]],
-      },
-      delta1: {
-        candidates: ["delta_1_sam_centralizado_gwh", "delta_e1_sam_nasa_2025_menos_pronostico_centralizado_cen_gwh", "delta_e1_gwh", "de1_gwh", "sam_nasa_menos_pronostico_centralizado_cen_gwh", "delta_e1_mwh"],
-        tokens: [["delta_e1", "de1", "e1"], ["gwh", "mwh", "energia"]],
-      },
-      delta2: {
-        candidates: ["delta_2_centralizado_disponible_gwh", "delta_e2_pronostico_centralizado_cen_menos_cen_disponible_gwh", "delta_e2_gwh", "de2_gwh", "centralizado_menos_cen_disponible_gwh", "delta_e2_mwh"],
-        tokens: [["delta_e2", "de2", "e2"], ["gwh", "mwh", "energia"]],
-      },
-      delta3: {
-        candidates: ["delta_3_reducciones_gwh", "delta_e3_reducciones_cen_gwh", "delta_e3_gwh", "de3_gwh", "energia_reducciones_cen_gwh", "reducciones_cen_gwh", "delta_e3_mwh"],
-        tokens: [["delta_e3", "de3", "e3", "reducciones", "curtailment"], ["gwh", "mwh", "energia"]],
-      },
-      factorReducciones: {
-        candidates: ["factor_reducciones_cen_pct", "factor_curtailment_anual_pct", "factor_curtailment_pct", "reducciones_cen_pct"],
-        tokens: [["factor"], ["reducciones", "curtailment"]],
-      },
-    };
-
-    const config = map[key];
-    if (!config) return null;
-    return key === "factorReducciones"
-      ? readNumber(kpis, config.candidates, config.tokens)
-      : readEnergyGwh(kpis, config.candidates, config.tokens);
-  }
-
-  function derivedDeltaFromKpis(kpis, key) {
-    const samNasa = validationKpiValue(kpis, "samNasa");
-    const centralizado = validationKpiValue(kpis, "centralizado");
-    const cenDisponible = validationKpiValue(kpis, "cenDisponible");
-    const generacionReal = validationKpiValue(kpis, "generacionReal");
-
-    if (key === "delta1" && samNasa !== null && centralizado !== null) return samNasa - centralizado;
-    if (key === "delta2" && centralizado !== null && cenDisponible !== null) return centralizado - cenDisponible;
-    if (key === "delta3" && cenDisponible !== null && generacionReal !== null) return cenDisponible - generacionReal;
-    return null;
-  }
-
-  function getDeltaValue(validation, key, fallbackKpis) {
-    const deltas = validation.deltas || {};
-    const rows = asArray(deltas);
-    const directKpi = validationKpiValue(fallbackKpis, key);
-    if (directKpi !== null) return directKpi;
-
-    const derived = derivedDeltaFromKpis(fallbackKpis, key);
-    if (derived !== null) return derived;
-
-    const direct = validationKpiValue(deltas, key);
-    if (direct !== null) return direct;
-    const row = rows.find((item) => normalizeKey(`${item.nombre || ""} ${item.eslabon || ""} ${item.comparacion || ""}`).includes(key.replace("delta", "e")));
-    if (row) {
-      return readEnergyGwh(row, ["energia_anual_gwh", "valor_gwh", "delta_gwh", "energia_gwh", "valor_mwh", "delta_mwh"], [["gwh", "mwh", "energia", "valor", "delta"]]);
-    }
-    return null;
-  }
-
-  function buildConclusionesBloque1(validation) {
-    const kpis = validation?.kpis || {};
-    const energiaSamNasa = validationKpiValue(kpis, "samNasa");
-    const energiaSamTmy = validationKpiValue(kpis, "samTmy");
-    const energiaPronostico = validationKpiValue(kpis, "centralizado");
-    const energiaCenDisponible = validationKpiValue(kpis, "cenDisponible");
-    const energiaGeneracionReal = validationKpiValue(kpis, "generacionReal");
-    const energiaReducciones = validationKpiValue(kpis, "reducciones");
-    const factorReducciones = validationKpiValue(kpis, "factorReducciones");
-    const deltaSamPronostico = getDeltaValue(validation, "delta1", kpis);
-    const deltaSamPronosticoPct = deltaSamPronostico !== null && energiaPronostico !== null && energiaPronostico !== 0
-      ? (deltaSamPronostico / energiaPronostico) * 100
-      : null;
-    const deltaSamCenDisponible = energiaSamNasa !== null && energiaCenDisponible !== null ? energiaSamNasa - energiaCenDisponible : null;
-    const delta1 = getDeltaValue(validation, "delta1", kpis);
-    const delta2 = getDeltaValue(validation, "delta2", kpis);
-    const delta3 = getDeltaValue(validation, "delta3", kpis);
-    const residuoTotal = energiaSamNasa !== null && energiaGeneracionReal !== null ? energiaSamNasa - energiaGeneracionReal : null;
-
-    return {
-      resumenEjecutivo:
-        `El Bloque 1 evalua la coherencia tecnico-operacional de la simulacion fotovoltaica de CEME1. ` +
-        `La simulacion SAM NASA 2025 alcanza ${fmt(energiaSamNasa, 1, "GWh/ano")}, mientras que el Pronostico centralizado CEN alcanza ${fmt(energiaPronostico, 1, "GWh/ano")}. ` +
-        `La diferencia anual entre ambas referencias es ${fmt(deltaSamPronostico, 1, "GWh")}, equivalente a ${fmt(deltaSamPronosticoPct, 2, "%")}. ` +
-        `Esta convergencia respalda la representatividad anual del modelo FV para el periodo 2025, sin interpretarse como verificacion fisica absoluta.`,
-      lecturaTecnica:
-        `Frente al CEN disponible de ${fmt(energiaCenDisponible, 1, "GWh/ano")}, el residuo SAM NASA 2025 - CEN disponible es ${fmt(deltaSamCenDisponible, 1, "GWh")}. ` +
-        `Esta diferencia debe interpretarse como discrepancia tecnico-operacional, dado que SAM no modela fallas reales, mantenimientos no informados, indisponibilidades tecnicas ni restricciones operacionales reales.`,
-      reducciones:
-        `Las Reducciones CEN alcanzan ${fmt(energiaReducciones, 1, "GWh/ano")}, equivalentes al ${fmt(factorReducciones, 1, "%")} del CEN disponible. ` +
-        `Esta energia reducida constituye la senal operacional principal para evaluar recuperacion energetica mediante BESS.`,
-      descomposicion:
-        `La brecha total entre SAM NASA 2025 y Generacion real CEN se descompone en tres eslabones: ` +
-        `Delta E1 = ${fmt(delta1, 1, "GWh")}, Delta E2 = ${fmt(delta2, 1, "GWh")} y Delta E3 = ${fmt(delta3, 1, "GWh")}. ` +
-        `La suma de estos componentes se compara con el residuo total de ${fmt(residuoTotal, 1, "GWh")}, permitiendo verificar la consistencia algebraica de la cadena SAM, Pronostico CEN, CEN disponible y Generacion real CEN.`,
-      decision:
-        `La decision tecnica del Bloque 1 es utilizar SAM NASA 2025 como base de contraste operacional frente a CEN 2025, ` +
-        `mantener SAM TMY Explorador Solar como referencia meteorologica tipica y usar las Reducciones CEN como senal de energia recuperable potencial para el analisis BESS del Bloque 2.`,
-      samTmy: energiaSamTmy,
-    };
-  }
-
-  function renderValidationReportSummary(validation) {
-    const kpis = validation.kpis || {};
-    const samNasa = validationKpiValue(kpis, "samNasa");
-    const cenDisponible = validationKpiValue(kpis, "cenDisponible");
-    const centralizado = validationKpiValue(kpis, "centralizado");
-    const residuo = validationKpiValue(kpis, "residuo");
-
-    setText(
-      "reportExecutiveSummary",
-      `El Bloque 1 consolida la comparación entre SAM NASA 2025, SAM TMY Explorador Solar, Pronóstico centralizado CEN y CEN disponible. ` +
-      `SAM NASA 2025 registra ${formatAvailable(samNasa, 1)} GWh, el Pronóstico centralizado CEN ${formatAvailable(centralizado, 1)} GWh ` +
-      `y CEN disponible ${formatAvailable(cenDisponible, 1)} GWh. El residuo SAM NASA 2025 − CEN disponible es ${formatAvailable(residuo, 1)} GWh. ` +
-      `La lectura técnica separa simulación, pronóstico operacional y reducciones CEN como eslabones del residuo.`
-    );
-
-    setText("reportKpiSamNasa", formatAvailable(samNasa, 1));
-    setText("reportKpiSamTmy", formatAvailable(validationKpiValue(kpis, "samTmy"), 1));
-    setText("reportKpiCentralized", formatAvailable(centralizado, 1));
-    setText("reportKpiCenAvailable", formatAvailable(cenDisponible, 1));
-    setText("reportKpiRealGen", formatAvailable(validationKpiValue(kpis, "generacionReal"), 1));
-    setText("reportKpiReductions", formatAvailable(validationKpiValue(kpis, "reducciones"), 1));
-    setText("reportKpiReductionFactor", formatAvailable(validationKpiValue(kpis, "factorReducciones"), 1));
-    setText("reportKpiResidual", formatAvailable(residuo, 1));
-    setText("reportKpiDelta1", formatAvailable(getDeltaValue(validation, "delta1", kpis), 1));
-    setText("reportKpiDelta2", formatAvailable(getDeltaValue(validation, "delta2", kpis), 1));
-    setText("reportKpiDelta3", formatAvailable(getDeltaValue(validation, "delta3", kpis), 1));
-  }
-
-  function renderValidationAnnualTable(validation) {
-    const rows = asArray(validation.resumen_anual);
-    if (!rows.length) {
-      addRows("reportAnnualResultsBody", [["Dato no disponible", "Dato no disponible", "Dato no disponible", "Dato no disponible", "No se encontró resumen_anual en el JSON"]]);
-      return;
-    }
-
-    addRows("reportAnnualResultsBody", rows.map((row) => [
-      getField(row, ["senal", "señal", "signal", "nombre", "variable", "caso", "caso_sam", "comparacion"]) || "Dato no disponible",
-      formatAvailable(readEnergyGwh(row, ["energia_anual_gwh", "energia_gwh", "valor_gwh", "energia_anual_mwh", "valor_mwh"], [["energia", "valor"], ["gwh", "mwh"]]), 1),
-      formatAvailable(readEnergyGwh(row, ["diferencia_contra_cen_disponible_gwh", "diff_cen_disponible_gwh", "delta_cen_disponible_gwh", "diferencia_gwh"], [["diferencia", "delta"], ["cen"], ["disponible"]]), 1),
-      formatAvailable(readNumber(row, ["diferencia_contra_cen_disponible_pct", "diff_cen_disponible_pct", "delta_pct", "diferencia_pct"], [["diferencia", "delta"], ["pct", "porcentaje"]]), 1),
-      getField(row, ["interpretacion", "interpretación", "descripcion", "descripción", "nota"]) || "Dato no disponible",
-    ]));
-  }
-
-  function renderValidationMetrics(validation) {
-    const rows = asArray(validation.metricas || validation.indicadores);
-    if (!rows.length) {
-      addRows("reportValidationBody", [["Dato no disponible", "Dato no disponible", "Dato no disponible", "Dato no disponible", "Dato no disponible", "Dato no disponible", "Dato no disponible"]]);
-      return;
-    }
-
-    addRows("reportValidationBody", rows.map((row) => [
-      getField(row, ["comparacion", "comparación", "nombre", "caso", "caso_sam", "referencia"]) || "Dato no disponible",
-      formatAvailable(readNumber(row, ["mbe_mwh", "mbe"], [["mbe"]]), 2),
-      formatAvailable(readNumber(row, ["mae_mwh", "mae"], [["mae"]]), 2),
-      formatAvailable(readNumber(row, ["rmse_mwh", "rmse"], [["rmse"]]), 2),
-      formatAvailable(readNumber(row, ["nrmse_pct", "nrmse"], [["nrmse"]]), 1),
-      formatAvailable(readNumber(row, ["correlacion_r", "corr_pearson", "r"], [["correlacion", "corr", "pearson", "r"]]), 3),
-      formatAvailable(readNumber(row, ["sesgo_anual_pct", "delta_pct", "bias_pct"], [["sesgo", "bias", "delta"], ["pct"]]), 1),
-    ]));
-  }
-
-  function renderValidationSources(validation) {
-    const rows = asArray(validation?.fuentes_datos);
-    if (rows.length) {
-      addRows("reportSourcesBody", rows.map((row) => [
-        getField(row, ["fuente"]) || "Dato no disponible",
-        getField(row, ["variable_dashboard", "variable"]) || "Dato no disponible",
-        getField(row, ["uso_bloque1", "uso"]) || "Dato no disponible",
-        getField(row, ["observacion", "observaciÃ³n", "nota"]) || "Dato no disponible",
-      ]));
-      return;
-    }
-
-    addRows("reportSourcesBody", [
-      ["SAM NASA 2025", "sam_nasa_2025_mwh", "Simulación técnica FV 2025", "No incorpora fallas, mantenimientos ni indisponibilidad real"],
-      ["SAM TMY Explorador Solar", "sam_tmy_mwh", "Caso meteorológico típico", "Base de caracterización solar"],
-      ["Pronóstico centralizado CEN", "pronostico_centralizado_cen_mwh", "Referencia operacional CEN", "Archivos Centralizado CEME1 2025"],
-      ["Generación real CEN", "generacion_real_cen_mwh", "Producción efectiva", "Equivale a RealSolar / señal CEN registrada"],
-      ["Reducciones CEN", "reducciones_cen_mwh", "Energía reducida", "Equivale al curtailment CEN"],
-      ["CEN disponible", "cen_disponible_mwh", "Generación real + reducciones", "Referencia operacional principal"],
-      ["Precio marginal horario Miraje 220 kV", "precio_marginal_horario_usd_mwh", "Valorización económica", "Puente hacia análisis BESS"],
-    ]);
-  }
-
-  function getMonthlyValue(row, key) {
-    const map = {
-      samNasa: [["energia_sam_nasa_2025_gwh", "sam_nasa_2025_gwh", "sam_nasa_gwh", "sam_nasa_2025_mwh"], [["sam"], ["nasa"]]],
-      samTmy: [["energia_sam_tmy_gwh", "energia_sam_tmy_explorador_solar_gwh", "sam_tmy_gwh", "sam_tmy_explorador_solar_gwh", "sam_tmy_mwh"], [["sam"], ["tmy"]]],
-      centralizado: [["energia_pronostico_centralizado_cen_gwh", "pronostico_centralizado_cen_gwh", "centralizado_cen_gwh", "pronostico_centralizado_cen_mwh"], [["pronostico", "centralizado"], ["cen"]]],
-      cenDisponible: [["energia_cen_disponible_gwh", "cen_disponible_gwh", "energia_disponible_cen_gwh", "cen_disponible_mwh"], [["cen"], ["disponible"]]],
-      generacionReal: [["energia_generacion_real_cen_gwh", "generacion_real_cen_gwh", "cen_inyeccion_gwh", "generacion_real_cen_mwh"], [["generacion", "inyeccion"], ["cen"]]],
-      reducciones: [["energia_reducciones_cen_gwh", "reducciones_cen_gwh", "cen_curtailment_gwh", "reducciones_cen_mwh"], [["reducciones", "curtailment"], ["cen"]]],
-    };
-    const [candidates, tokens] = map[key] || [[], []];
-    return readEnergyGwh(row, candidates, tokens);
-  }
-
-  function renderValidationResidual(validation) {
-    const kpis = validation.kpis || {};
-    const delta1 = getDeltaValue(validation, "delta1", kpis);
-    const delta2 = getDeltaValue(validation, "delta2", kpis);
-    const delta3 = getDeltaValue(validation, "delta3", kpis);
-    const conclusiones = buildConclusionesBloque1(validation);
-    const residuoTotal = validationKpiValue(kpis, "samNasa") !== null && validationKpiValue(kpis, "generacionReal") !== null
-      ? validationKpiValue(kpis, "samNasa") - validationKpiValue(kpis, "generacionReal")
-      : null;
-
-    setText(
-      "reportResidualText",
-      "La descomposición operacional separa la brecha entre simulación técnica, pronóstico operacional, disponibilidad observada y reducciones CEN."
-    );
-
-    setText("reportResidualText", conclusiones.descomposicion);
-
-    const rows = [
-      ["ΔE1", "SAM NASA 2025 − Pronóstico centralizado CEN", delta1, "Brecha entre simulación técnica SAM y referencia operacional seleccionada por el CEN."],
-      ["ΔE2", "Pronóstico centralizado CEN − CEN disponible", delta2, "Desviación entre pronóstico centralizado CEN y disponibilidad operacional observada."],
-      ["ΔE3", "CEN disponible − Generación real CEN", delta3, "Reducciones CEN, equivalentes al curtailment operacional y a la oportunidad energética para el BESS."],
-      ["Residuo total", "SAM NASA 2025 − Generación real CEN", residuoTotal, "Brecha total entre simulación SAM NASA 2025 y generación real CEN."],
-    ];
-
-    addRows("reportResidualBody", rows.map(([label, comparison, value, interpretation]) => [
-      label,
-      comparison,
-      formatAvailable(value, 1),
-      interpretation,
-    ]));
-
-    renderWaterfallChart(rows.map(([label, , value]) => ({ label, value })));
-  }
-
-  function renderReportSummary(bundles) {
-    if (bundles.validation) {
-      renderValidationReportSummary(bundles.validation);
-      return;
-    }
-
-    const { nasa, samCen } = bundles;
-    const cen = samCen.cen_kpis || {};
-    const summaryNasa = findCase(samCen.resumen_anual, /nasa/i);
-    const indicatorsNasa = (samCen.indicadores || []).find((row) =>
-      /nasa/i.test(`${row.caso_sam || ""}`) &&
-      row.referencia === "CEN disponible = inyeccion + curtailment" &&
-      row.filtro === "todas_las_horas"
-    ) || {};
-
-    setText(
-      "reportExecutiveSummary",
-      `El Bloque 1 consolida la modelación FV horaria de CEME1 en SAM y la contrasta con la referencia operacional CEN 2025. ` +
-      `La simulación SAM NASA 2025 alcanza ${formatNumber(nasa.kpis?.energia_ac_neta_gwh_anio, 1)} GWh/año, mientras que ` +
-      `CEN disponible registra ${formatNumber(cen.energia_disponible_cen_gwh, 1)} GWh/año. El residuo SAM − CEN disponible ` +
-      `es ${formatNumber(summaryNasa.sam_menos_cen_disponible_gwh, 1)} GWh (${formatNumber(summaryNasa.sam_menos_cen_disponible_pct, 1)} %), ` +
-      `con nRMSE horario de ${formatNumber(indicatorsNasa.nrmse_pct, 1)} %. Este residuo se interpreta como discrepancia técnico-operacional.`
-    );
-
-    setText("reportKpiSamNasa", formatNumber(nasa.kpis?.energia_ac_neta_gwh_anio, 1));
-    setText("reportKpiSamTmy", formatNumber(findCase(samCen.sam_kpis, /tmy/i).energia_ac_neta_gwh, 1));
-    setText("reportKpiCentralized", "Dato no disponible");
-    setText("reportKpiCenAvailable", formatNumber(cen.energia_disponible_cen_gwh, 1));
-    setText("reportKpiResidual", formatNumber(summaryNasa.sam_menos_cen_disponible_gwh, 1));
-    setText("reportKpiRealGen", formatNumber(cen.energia_inyectada_cen_gwh, 1));
-    setText("reportKpiReductions", formatNumber(cen.energia_curtailment_cen_gwh, 1));
-    setText("reportKpiReductionFactor", formatNumber(cen.factor_curtailment_anual_pct, 1));
-    setText("reportKpiDelta1", "Dato no disponible");
-    setText("reportKpiDelta2", "Dato no disponible");
-    setText("reportKpiDelta3", formatNumber(cen.energia_curtailment_cen_gwh, 1));
-  }
-
-  function renderReportTables(bundles) {
-    if (bundles.validation) {
-      renderValidationSources(bundles.validation);
-      renderValidationAnnualTable(bundles.validation);
-      renderValidationMetrics(bundles.validation);
-      return;
-    }
-
-    const { tmy, nasa, compare, samCen } = bundles;
-    const cen = samCen.cen_kpis || {};
-    const samTmy = findCase(samCen.sam_kpis, /tmy/i);
-    const samNasa = findCase(samCen.sam_kpis, /nasa/i);
-    const summaryNasa = findCase(samCen.resumen_anual, /nasa/i);
-
-    addRows("reportSourcesBody", [
-      ["SAM NASA 2025", "sam_nasa_2025_mwh", "Simulación técnica FV horaria bajo meteorología histórica 2025", "No incorpora fallas, mantenimientos ni indisponibilidad real"],
-      ["SAM TMY Explorador Solar", "sam_tmy_mwh", "Caso base meteorológico típico para comparación técnica FV", "Año meteorológico típico del Explorador Solar"],
-      ["CEN/SEN 2025", "cen_disponible_mwh", "Generación real CEN, Reducciones CEN y CEN disponible", "Referencia operacional construida desde datos CEN"],
-      ["Comparativa TMY vs NASA 2025", "comparativa_sam", "Contraste meteorológico y energético entre escenarios SAM", "No modifica fórmulas ni referencias CEN"],
-    ]);
-
-    addRows("reportAnnualResultsBody", [
-      ["SAM TMY Explorador Solar", formatNumber(samTmy.energia_ac_neta_gwh, 1), formatNumber((samTmy.energia_ac_neta_gwh || 0) - (cen.energia_disponible_cen_gwh || 0), 1), "Dato no disponible", "Simulación FV con año meteorológico típico"],
-      ["SAM NASA 2025", formatNumber(samNasa.energia_ac_neta_gwh, 1), formatNumber(summaryNasa.sam_menos_cen_disponible_gwh, 1), formatNumber(summaryNasa.sam_menos_cen_disponible_pct, 1), "Simulación FV con meteorología histórica 2025"],
-      ["Generación real CEN", formatNumber(cen.energia_inyectada_cen_gwh, 1), formatNumber((cen.energia_inyectada_cen_gwh || 0) - (cen.energia_disponible_cen_gwh || 0), 1), "Dato no disponible", "Señal de generación real CEN, equivalente a inyección registrada"],
-      ["Reducciones CEN (curtailment)", formatNumber(cen.energia_curtailment_cen_gwh, 1), "Dato no disponible", "Dato no disponible", "Reducciones operacionales definidas por CEN"],
-      ["CEN disponible", formatNumber(cen.energia_disponible_cen_gwh, 1), "0,0", "0,0", "Generación real CEN + Reducciones CEN"],
-      ["Residuo SAM NASA 2025 − CEN disponible", formatNumber(summaryNasa.sam_menos_cen_disponible_gwh, 1), formatNumber(summaryNasa.sam_menos_cen_disponible_gwh, 1), formatNumber(summaryNasa.sam_menos_cen_disponible_pct, 1), "Discrepancia técnico-operacional"],
-      ["Factor reducciones CEN", formatNumber(cen.factor_curtailment_anual_pct, 1), "Dato no disponible", "Dato no disponible", "Reducciones CEN / CEN disponible"],
-    ]);
-
-    addRows("reportValidationBody", (samCen.indicadores || []).map((row) => [
-      `${displaySamCase(row.caso_sam, row.fuente_meteorologica)} vs ${displayReference(row.referencia)} (${row.filtro || "--"})`,
-      formatNumber(row.mbe, 2),
-      formatNumber(row.mae, 2),
-      formatNumber(row.rmse, 2),
-      `${formatNumber(row.nrmse_pct, 1)} %`,
-      formatNumber(row.corr_pearson, 3),
-      `${formatNumber(row.delta_pct, 1)} %`,
-    ]));
-  }
-
-  function renderResidualSection(bundles) {
-    if (bundles.validation) {
-      renderValidationResidual(bundles.validation);
-      return;
-    }
-
-    const { samCen } = bundles;
-    const cen = samCen.cen_kpis || {};
-    const summaryNasa = findCase(samCen.resumen_anual, /nasa/i);
-    const samNasa = findCase(samCen.sam_kpis, /nasa/i);
-
-    setText(
-      "reportResidualText",
-      "La descomposición operacional separa la energía disponible CEN en Generación real CEN y Reducciones CEN. " +
-      "El residuo se calcula contra CEN disponible y no contra la inyección registrada, evitando confundir restricciones operacionales con error puro del modelo FV."
-    );
-
-    const residuoTotal = (samNasa.energia_ac_neta_gwh || 0) - (cen.energia_inyectada_cen_gwh || 0);
-    addRows("reportResidualBody", [
-      ["ΔE1", "SAM NASA 2025 − Pronóstico centralizado CEN", "Dato no disponible", "Brecha entre simulación técnica SAM y referencia operacional seleccionada por el CEN."],
-      ["ΔE2", "Pronóstico centralizado CEN − CEN disponible", "Dato no disponible", "Desviación entre pronóstico centralizado CEN y disponibilidad operacional observada."],
-      ["ΔE3", "CEN disponible − Generación real CEN", formatNumber(cen.energia_curtailment_cen_gwh, 1), "Reducciones CEN, equivalentes al curtailment operacional y a la oportunidad energética para el BESS."],
-      ["Residuo total", "SAM NASA 2025 − Generación real CEN", formatNumber(residuoTotal, 1), "Brecha total entre simulación SAM NASA 2025 y generación real CEN."],
-    ]);
-
-    renderWaterfallChart([
-      { label: "ΔE1", value: null },
-      { label: "ΔE2", value: null },
-      { label: "ΔE3", value: cen.energia_curtailment_cen_gwh },
-      { label: "Residuo total", value: residuoTotal },
-    ]);
-  }
-
-  function renderReportConclusion(bundles) {
-    if (bundles.validation) {
-      setText(
-        "reportConclusion",
-        "La comparación entre SAM NASA 2025, el pronóstico centralizado CEN y el CEN disponible permite cerrar el bloque FV mediante una descomposición operacional del residuo. Esta estructura separa la brecha entre simulación técnica, pronóstico operacional y reducciones CEN, entregando una base consistente para avanzar hacia la simulación del BESS y la valorización de energía reducida."
-      );
-      return;
-    }
-
-    const summaryNasa = findCase(bundles.samCen.resumen_anual, /nasa/i);
-    setText(
-      "reportConclusion",
-      `El Bloque 1 deja establecida una referencia técnica y operacional para CEME1. SAM NASA 2025 se usa como simulación ` +
-      `técnica de generación FV y CEN disponible como referencia operacional antes de reducciones. La brecha anual de ` +
-      `${formatNumber(summaryNasa.sam_menos_cen_disponible_gwh, 1)} GWh debe leerse como discrepancia técnico-operacional ` +
-      `y sirve como base para los análisis posteriores de recuperación energética y operación BESS.`
-    );
-  }
-
-  function renderReportLimitations(validation) {
-    const list = byId("reportLimitationsList");
-    if (!list) return;
-    const rows = Array.isArray(validation?.limitaciones) && validation.limitaciones.length
-      ? validation.limitaciones
-      : [
-        "No se dispone de irradiancia in situ en CEME1.",
-        "El contraste con referencias operacionales oficiales del CEN constituye una verificacion de consistencia tecnico-operacional.",
-        "SAM no modela fallas reales, mantenimientos no informados ni indisponibilidad tecnica historica.",
-        "Las Reducciones CEN se interpretan como curtailment operacional recuperable potencialmente por el BESS.",
-      ];
-    list.replaceChildren(...rows.map((text) => {
-      const li = document.createElement("li");
-      li.textContent = text;
-      return li;
-    }));
-  }
-
-  function getEastWestRows(bundles) {
-    const profile = bundles.profile || {};
-    const validation = bundles.validation || {};
-    const candidates = [
-      profile.perfil_horario_nasa_2025,
-      validation.perfil_este_oeste_sam_nasa_2025,
-      profile.perfil_horario,
-      validation.perfil_este_oeste_sam,
-    ].find((rows) => Array.isArray(rows) && rows.length);
-
-    const rows = Array.isArray(candidates) ? candidates : [];
-    const nasaRows = rows.filter((row) => /nasa|2025/i.test(`${row.caso_sam || ""} ${row.nombre_caso || ""} ${row.fuente_meteorologica || ""}`));
-    return (nasaRows.length ? nasaRows : rows)
-      .map((row) => ({
-        hora: Number(row.hora),
-        este_mwh: readNumber(row, ["este_mwh", "energia_este_mwh"]),
-        oeste_mwh: readNumber(row, ["oeste_mwh", "energia_oeste_mwh"]),
-        total_mwh: readNumber(row, ["total_mwh", "energia_total_mwh"]),
-      }))
-      .filter((row) => Number.isFinite(row.hora))
-      .sort((a, b) => a.hora - b.hora);
-  }
-
-  function destroyProfileChart() {
-    if (reportState.profileChart && typeof reportState.profileChart.destroy === "function") {
-      reportState.profileChart.destroy();
-    }
-    reportState.profileChart = null;
-  }
-
-  function renderReportEastWestProfile(bundles) {
-    const canvas = byId("reportEastWestChart");
-    const note = byId("reportEastWestNote");
-    if (!canvas) return;
-    const rows = getEastWestRows(bundles);
-    destroyProfileChart();
-
-    if (!rows.length || typeof Chart === "undefined") {
-      if (note) note.textContent = "Perfil Este/Oeste no disponible. Ejecute nuevamente el script CEN-SAM con generacion de perfil Este/Oeste.";
-      return;
-    }
-
-    if (note) note.textContent = "Perfil horario representativo de produccion FV - configuracion Este/Oeste. Caso principal: SAM NASA 2025.";
-
-    reportState.profileChart = new Chart(canvas, {
-      type: "line",
-      data: {
-        labels: rows.map((row) => `${String(row.hora).padStart(2, "0")}:00`),
-        datasets: [
-          { label: "Este", data: rows.map((row) => row.este_mwh), borderColor: "#1b6dcc", backgroundColor: "#1b6dcc", borderWidth: 2, pointRadius: 2, tension: 0.25 },
-          { label: "Oeste", data: rows.map((row) => row.oeste_mwh), borderColor: "#e27820", backgroundColor: "#e27820", borderWidth: 2, pointRadius: 2, tension: 0.25 },
-          { label: "Total", data: rows.map((row) => row.total_mwh), borderColor: "#1e8f49", backgroundColor: "#1e8f49", borderWidth: 2, pointRadius: 2, tension: 0.25 },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-          legend: { labels: { color: "#16324d", boxWidth: 14, usePointStyle: true } },
-          tooltip: {
-            backgroundColor: "rgba(255,255,255,0.96)",
-            titleColor: "#0b1d31",
-            bodyColor: "#18344f",
-            borderColor: "#bdd1e5",
-            borderWidth: 1,
-          },
-        },
-        scales: {
-          x: { ticks: { color: "#18344f", maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, grid: { color: "rgba(20, 60, 96, 0.08)" } },
-          y: { title: { display: true, text: "MWh promedio", color: "#18344f" }, ticks: { color: "#18344f" }, grid: { color: "rgba(20, 60, 96, 0.12)" } },
-        },
-      },
-      plugins: [{
-        id: "reportEastWestWhiteCanvas",
-        beforeDraw(chart) {
-          const { ctx, width, height } = chart;
-          ctx.save();
-          ctx.globalCompositeOperation = "destination-over";
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, width, height);
-          ctx.restore();
-        },
-      }],
-    });
-  }
-
-  function destroyMonthlyChart() {
-    if (reportState.monthlyChart && typeof reportState.monthlyChart.destroy === "function") {
-      reportState.monthlyChart.destroy();
-    }
-    reportState.monthlyChart = null;
-  }
-
-  function destroyWaterfallChart() {
-    if (reportState.waterfallChart && typeof reportState.waterfallChart.destroy === "function") {
-      reportState.waterfallChart.destroy();
-    }
-    reportState.waterfallChart = null;
-  }
-
-  function renderWaterfallChart(rows) {
-    const canvas = byId("reportWaterfallChart");
-    if (!canvas || typeof Chart === "undefined") return;
-
-    destroyWaterfallChart();
-    reportState.waterfallChart = new Chart(canvas, {
-      type: "bar",
-      data: {
-        labels: rows.map((row) => row.label),
-        datasets: [{
-          label: "Energía anual [GWh]",
-          data: rows.map((row) => Number.isFinite(Number(row.value)) ? Number(row.value) : 0),
-          backgroundColor: ["#1b6dcc", "#8d63c7", "#e27820", "#174a7c"],
-          borderColor: ["#1b6dcc", "#8d63c7", "#e27820", "#174a7c"],
-          borderWidth: 1,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "rgba(255,255,255,0.96)",
-            titleColor: "#0b1d31",
-            bodyColor: "#18344f",
-            borderColor: "#bdd1e5",
-            borderWidth: 1,
-          },
-        },
-        scales: {
-          x: { ticks: { color: "#18344f" }, grid: { color: "rgba(20, 60, 96, 0.08)" } },
-          y: {
-            title: { display: true, text: "GWh/año", color: "#18344f" },
-            ticks: { color: "#18344f" },
-            grid: { color: "rgba(20, 60, 96, 0.12)" },
-          },
-        },
-      },
-      plugins: [{
-        id: "reportWaterfallWhiteCanvas",
-        beforeDraw(chart) {
-          const { ctx, width, height } = chart;
-          ctx.save();
-          ctx.globalCompositeOperation = "destination-over";
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, width, height);
-          ctx.restore();
-        },
-      }],
-    });
-  }
-
-  function renderMonthlyChart(bundles) {
-    const canvas = byId("reportMonthlyChart");
-    if (!canvas || typeof Chart === "undefined") return;
-
-    const validation = bundles.validation;
-    const rows = validation
-      ? asArray(validation.mensual)
-      : (bundles.samCen.mensual || []).filter((row) => /nasa/i.test(`${row.caso_sam || ""}`));
-    const labels = rows.map((row) => row.mes_nombre || row.mes);
-
-    destroyMonthlyChart();
-    reportState.monthlyChart = new Chart(canvas, {
-      type: "bar",
-      data: {
-        labels,
-        datasets: validation ? [
-          {
-            type: "line",
-            label: "SAM NASA 2025",
-            data: rows.map((row) => getMonthlyValue(row, "samNasa") || 0),
-            borderColor: "#1b6dcc",
-            backgroundColor: "#1b6dcc",
-            borderWidth: 2,
-            pointRadius: 2,
-            tension: 0.25,
-            yAxisID: "y",
-          },
-          {
-            type: "line",
-            label: "SAM TMY Explorador Solar",
-            data: rows.map((row) => getMonthlyValue(row, "samTmy") || 0),
-            borderColor: "#1e8f49",
-            backgroundColor: "#1e8f49",
-            borderWidth: 2,
-            pointRadius: 2,
-            tension: 0.25,
-            yAxisID: "y",
-          },
-          {
-            type: "line",
-            label: "Pronóstico centralizado CEN",
-            data: rows.map((row) => getMonthlyValue(row, "centralizado") || 0),
-            borderColor: "#8d63c7",
-            backgroundColor: "#8d63c7",
-            borderWidth: 2,
-            pointRadius: 2,
-            tension: 0.25,
-            yAxisID: "y",
-          },
-          {
-            type: "line",
-            label: "CEN disponible",
-            data: rows.map((row) => getMonthlyValue(row, "cenDisponible") || 0),
-            borderColor: "#c69a00",
-            backgroundColor: "#c69a00",
-            borderWidth: 2,
-            pointRadius: 2,
-            tension: 0.25,
-            yAxisID: "y",
-          },
-          {
-            type: "line",
-            label: "Generación real CEN",
-            data: rows.map((row) => getMonthlyValue(row, "generacionReal") || 0),
-            borderColor: "#3178c4",
-            backgroundColor: "#3178c4",
-            borderWidth: 2,
-            pointRadius: 2,
-            tension: 0.25,
-            yAxisID: "y",
-          },
-          {
-            label: "Reducciones CEN",
-            data: rows.map((row) => getMonthlyValue(row, "reducciones") || 0),
-            backgroundColor: "rgba(226, 120, 32, 0.34)",
-            borderColor: "#e27820",
-            borderWidth: 1,
-            yAxisID: "y",
-          },
-        ] : [
-          {
-            type: "line",
-            label: "SAM NASA 2025",
-            data: rows.map((row) => row.sam_e_ac_gwh || 0),
-            borderColor: "#1b6dcc",
-            backgroundColor: "#1b6dcc",
-            borderWidth: 2,
-            pointRadius: 2,
-            tension: 0.25,
-            yAxisID: "y",
-          },
-          {
-            type: "line",
-            label: "CEN disponible",
-            data: rows.map((row) => row.cen_disponible_gwh || 0),
-            borderColor: "#c69a00",
-            backgroundColor: "#c69a00",
-            borderWidth: 2,
-            pointRadius: 2,
-            tension: 0.25,
-            yAxisID: "y",
-          },
-          {
-            label: "Generación real CEN",
-            data: rows.map((row) => row.cen_inyeccion_gwh || 0),
-            backgroundColor: "rgba(49, 120, 196, 0.42)",
-            borderColor: "#3178c4",
-            borderWidth: 1,
-            yAxisID: "y",
-          },
-          {
-            label: "Reducciones CEN (curtailment)",
-            data: rows.map((row) => row.cen_curtailment_gwh || 0),
-            backgroundColor: "rgba(226, 120, 32, 0.42)",
-            borderColor: "#e27820",
-            borderWidth: 1,
-            yAxisID: "y",
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-          legend: {
-            labels: { color: "#16324d", boxWidth: 14, usePointStyle: true },
-          },
-          tooltip: {
-            backgroundColor: "rgba(255,255,255,0.96)",
-            titleColor: "#0b1d31",
-            bodyColor: "#18344f",
-            borderColor: "#bdd1e5",
-            borderWidth: 1,
-          },
-        },
-        scales: {
-          x: {
-            ticks: { color: "#18344f", maxRotation: 0 },
-            grid: { color: "rgba(20, 60, 96, 0.08)" },
-          },
-          y: {
-            title: { display: true, text: "GWh/mes", color: "#18344f" },
-            ticks: { color: "#18344f" },
-            grid: { color: "rgba(20, 60, 96, 0.12)" },
-          },
-        },
-      },
-      plugins: [{
-        id: "reportWhiteCanvas",
-        beforeDraw(chart) {
-          const { ctx, width, height } = chart;
-          ctx.save();
-          ctx.globalCompositeOperation = "destination-over";
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, width, height);
-          ctx.restore();
-        },
-      }],
-    });
-  }
-
-  async function renderReportesView() {
-    if (reportState.rendering) return;
-    reportState.rendering = true;
-
-    try {
-      renderReportHeader();
-      const bundles = await loadReportBundles();
-      renderReportSummary(bundles);
-      renderReportTables(bundles);
-      renderReportLimitations(bundles.validation);
-      renderResidualSection(bundles);
-      renderReportConclusion(bundles);
-      if (bundles.validation) {
-        const conclusiones = buildConclusionesBloque1(bundles.validation);
-        setText("reportConclusion", `${conclusiones.lecturaTecnica} ${conclusiones.reducciones} ${conclusiones.decision}`);
-      }
-      renderMonthlyChart(bundles);
-      renderReportEastWestProfile(bundles);
-    } catch (error) {
-      console.error("No se pudo renderizar Reportes:", error);
-      setText("reportPdfStatus", "No se pudieron cargar los datos del reporte");
-    } finally {
-      reportState.rendering = false;
-    }
-  }
-
-  function replaceCanvasesWithImages(original, clone) {
-    const originalCanvases = original.querySelectorAll("canvas");
-    const cloneCanvases = clone.querySelectorAll("canvas");
-
-    originalCanvases.forEach((canvas, index) => {
-      const cloneCanvas = cloneCanvases[index];
-      if (!cloneCanvas) return;
-
-      try {
-        const img = document.createElement("img");
-        img.src = canvas.toDataURL("image/png", 1);
-        img.alt = canvas.getAttribute("aria-label") || "Gráfico del reporte";
-        img.style.width = "100%";
-        img.style.height = "100%";
-        img.style.objectFit = "contain";
-        img.style.display = "block";
-        cloneCanvas.replaceWith(img);
-      } catch (error) {
-        console.warn("No se pudo convertir canvas del reporte a imagen:", error);
-      }
-    });
-  }
-
-  async function exportReportPdf() {
-    const button = byId("exportReportPdfBtn");
-    const status = byId("reportPdfStatus");
-    const source = byId("reportBloque1Content");
-
-    if (!source) return;
-
-    if (typeof window.html2pdf !== "function") {
-      if (status) status.textContent = "No se pudo cargar la librería PDF";
-      return;
-    }
-
-    if (button) button.disabled = true;
-    if (status) status.textContent = "Generando PDF...";
-
-    try {
-      await renderReportesView();
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-      const clone = source.cloneNode(true);
-      clone.classList.add("pdf-report-page", "pdf-export-mode");
-      clone.style.width = `${PDF_EXPORT_WIDTH_PX}px`;
-      clone.style.maxWidth = `${PDF_EXPORT_WIDTH_PX}px`;
-      const clonedDate = clone.querySelector("#reportGeneratedAt");
-      if (clonedDate) clonedDate.textContent = formatDateTime();
-      clone.querySelectorAll(".pdf-hide").forEach((el) => el.remove());
-      replaceCanvasesWithImages(source, clone);
-
-      const temp = document.createElement("div");
-      temp.className = "pdf-export-host";
-      temp.style.position = "fixed";
-      temp.style.left = "0";
-      temp.style.top = "0";
-      temp.style.zIndex = "99999";
-      temp.style.background = "#ffffff";
-      temp.style.width = `${PDF_EXPORT_WIDTH_PX}px`;
-      temp.style.maxWidth = `${PDF_EXPORT_WIDTH_PX}px`;
-      temp.style.overflow = "hidden";
-      temp.appendChild(clone);
-      document.body.appendChild(temp);
-      const captureWidth = Math.ceil(clone.getBoundingClientRect().width) || PDF_EXPORT_WIDTH_PX;
-
-      const pdfWorker = window.html2pdf()
-        .set({
-          margin: [10, 9, 14, 9],
-          filename: "reporte_bloque1_ceme1_fv_cen.pdf",
-          image: { type: "jpeg", quality: 0.99 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            logging: false,
-            windowWidth: captureWidth,
-            width: captureWidth,
-            scrollX: 0,
-            scrollY: 0,
-            x: 0,
-            y: 0,
-          },
-          jsPDF: { unit: "mm", format: "letter", orientation: "portrait" },
-          pagebreak: {
-            mode: ["css", "legacy"],
-            avoid: [".report-chart-card", ".report-kpi-grid article", ".report-table tr", ".report-profile-section"],
-          },
-        })
-        .from(clone)
-        .toPdf();
-
-      await pdfWorker.get("pdf").then((pdf) => {
-        const pageCount = pdf.internal.getNumberOfPages();
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        for (let page = 1; page <= pageCount; page += 1) {
-          pdf.setPage(page);
-          pdf.setTextColor(15, 39, 66);
-          pdf.setFontSize(7);
-          pdf.text("Storage Analytics | Reporte Bloque 1", 9, 6);
-          pdf.text(`Pagina ${page} de ${pageCount}`, pageWidth - 9, pageHeight - 5, { align: "right" });
-          pdf.text("Storage Analytics - CEME1 FV + BESS", 9, pageHeight - 5);
-        }
-      });
-
-      await pdfWorker.save();
-
-      temp.remove();
-      if (status) status.textContent = "PDF generado correctamente";
-      setTimeout(() => {
-        if (status && status.textContent === "PDF generado correctamente") status.textContent = "";
-      }, 4500);
-    } catch (error) {
-      console.error("No se pudo exportar el reporte PDF:", error);
-      if (status) status.textContent = "No se pudo generar el PDF";
-    } finally {
-      document.querySelectorAll(".pdf-export-host").forEach((el) => el.remove());
-      if (button) button.disabled = false;
-    }
-  }
-
-  function initReportModule() {
-    const button = byId("exportReportPdfBtn");
-    if (button) button.addEventListener("click", exportReportPdf);
-  }
-
-  window.renderReportesView = renderReportesView;
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initReportModule);
-  } else {
-    initReportModule();
-  }
-})();
-
-
-/* ============================================================
    SUBPESTAÑAS INTERNAS PLANTA FV / SIMULACIÓN ENERGÉTICA
    ============================================================ */
 (function () {
@@ -4973,7 +3853,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
 
 
 /* ============================================================
-   PATCH FINAL BLOQUE 1 — SIMULACIÓN ENERGÉTICA + REPORTE PDF
+   PATCH FINAL — SIMULACIÓN ENERGÉTICA + REPORTE PDF
    Reglas:
    - No elimina vistas ni gráficos.
    - No inventa valores ni usa ratios para DC/POA.
@@ -4988,10 +3868,10 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
   const PERFIL_EO_URL = "data/perfil_este_oeste_sam_dashboard_bundle.json";
   const PERFIL_EO_FALLBACK = "data/perfil_este_oeste_sam_dashboard_lite.json";
   const SCADA_URL = "data/sam_tmy_nasa_vs_cen_horario_scada_lite.json";
-  const REPORT_COMPARE_METRICS_URL = "data/comparativa_recurso_solar_tmy_vs_nasa_metricas_dashboard.json";
   const REPORT_CLIPPING_URL = "data/clipping_sam_dashboard_bundle.json";
   const REPORT_CLIPPING_FALLBACK = "data/clipping_sam_dashboard_lite.json";
   const ARCHITECTURE_URL = "data/ceme1_architecture.json";
+  const METEO_NASA_URL = "data/recurso_solar_nasa_2025_dashboard_bundle.json";
 
   const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
   const SOURCE_META = {
@@ -5031,9 +3911,9 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     validationBundle: null,
     profileBundle: null,
     scadaRows: null,
-    reportCompareMetricsBundle: null,
     reportClippingBundle: null,
     architectureBundle: null,
+    meteoNasaBundle: null,
     plantCharts: {},
     architectureCharts: {},
     clippingCharts: {},
@@ -5139,6 +4019,15 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
   function barDs(label, data, color, yAxisID = "y") {
     return { label, data, backgroundColor: `${color}cc`, borderColor: color, borderWidth: 1, borderRadius: 4, yAxisID };
   }
+  function whiteAxisX(extra = {}) {
+    return { ticks: { color: "#334155" }, grid: { color: "rgba(148, 163, 184, 0.18)" }, ...extra };
+  }
+  function whiteAxisY(title, extra = {}) {
+    return { title: { display: true, text: title, color: "#334155" }, ticks: { color: "#334155" }, grid: { color: "rgba(148, 163, 184, 0.22)" }, beginAtZero: true, ...extra };
+  }
+  function whitePluginsNoLegend(extra = {}) {
+    return { legend: { display: false }, tooltip: { backgroundColor: "rgba(15, 23, 42, 0.95)", titleColor: "#fff", bodyColor: "#fff" }, ...extra };
+  }
 
   async function getSimBundle() {
     if (!state.simBundle) state.simBundle = await fetchJson(SIM_URL, SIM_FALLBACK);
@@ -5218,16 +4107,6 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     if (!state.scadaRows) state.scadaRows = await fetchJson(SCADA_URL, null);
     return state.scadaRows;
   }
-  async function getReportCompareMetricsBundle() {
-    if (state.reportCompareMetricsBundle !== null) return state.reportCompareMetricsBundle;
-    try {
-      state.reportCompareMetricsBundle = await fetchJson(REPORT_COMPARE_METRICS_URL, null);
-    } catch (error) {
-      console.warn("Metricas comparativas TMY vs NASA no disponibles para reporte PDF:", error);
-      state.reportCompareMetricsBundle = null;
-    }
-    return state.reportCompareMetricsBundle;
-  }
   async function getReportClippingBundle() {
     if (state.reportClippingBundle !== null) return state.reportClippingBundle;
     try {
@@ -5242,6 +4121,11 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
   async function getArchitectureBundle() {
     if (!state.architectureBundle) state.architectureBundle = await fetchJson(ARCHITECTURE_URL, null);
     return state.architectureBundle;
+  }
+
+  async function getMeteoNasaBundle() {
+    if (!state.meteoNasaBundle) state.meteoNasaBundle = await fetchJson(METEO_NASA_URL, null);
+    return state.meteoNasaBundle;
   }
 
   function rowsForCase(rows, mode) {
@@ -5669,7 +4553,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
   };
 
   // -------------------------------------------------------------------------
-  // Reporte Bloque 1 PDF estilo documento técnico
+  // Reporte técnico PDF estilo documento técnico
   // -------------------------------------------------------------------------
   function whiteCanvasPlugin(id) {
     return {
@@ -5684,449 +4568,674 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       },
     };
   }
-  function valueLabelPlugin(id, formatter = (value) => fmt(value, 1)) {
+  function valueLabelPlugin(id, formatter = (value) => fmt(value, 2)) {
     return {
       id,
       afterDatasetsDraw(chart) {
-        const dataset = chart?.data?.datasets?.[0];
-        const meta = chart.getDatasetMeta(0);
-        if (!dataset || !meta?.data?.length) return;
         const { ctx, chartArea } = chart;
         ctx.save();
-        ctx.font = "700 10px Arial, Helvetica, sans-serif";
+        ctx.font = "700 9px Arial, Helvetica, sans-serif";
         ctx.fillStyle = "#1f2937";
         ctx.textAlign = "center";
-        meta.data.forEach((element, index) => {
-          const value = n(dataset.data[index]);
-          if (value === null || !element) return;
-          const pos = element.tooltipPosition ? element.tooltipPosition() : element;
-          ctx.textBaseline = value >= 0 ? "bottom" : "top";
-          const y = value >= 0
-            ? Math.max(chartArea.top + 12, pos.y - 6)
-            : Math.min(chartArea.bottom - 2, pos.y + 10);
-          ctx.fillText(formatter(value), pos.x, y);
+        chart.data.datasets.forEach((dataset, dsIndex) => {
+          const meta = chart.getDatasetMeta(dsIndex);
+          if (!meta || meta.hidden) return;
+          meta.data.forEach((element, index) => {
+            const raw = dataset.data[index];
+            const value = Array.isArray(raw) ? raw[1] - raw[0] : n(raw);
+            if (value === null || value === undefined || !element) return;
+            const pos = element.tooltipPosition ? element.tooltipPosition() : element;
+            const positive = value >= 0;
+            ctx.textBaseline = positive ? "bottom" : "top";
+            const y = positive
+              ? Math.max(chartArea.top + 10, pos.y - 4)
+              : Math.min(chartArea.bottom - 2, pos.y + 12);
+            ctx.fillText(formatter(Math.abs(value)), pos.x, y);
+          });
         });
         ctx.restore();
       },
     };
   }
   function sum(rows, key) { return (Array.isArray(rows) ? rows : []).reduce((acc, r) => acc + (n(r[key]) || 0), 0); }
-  function avg(rows, key) {
-    const vals = (Array.isArray(rows) ? rows : []).map((r) => n(r[key])).filter((v) => v !== null);
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-  }
-  function avgAny(rows, keys) {
-    const vals = (Array.isArray(rows) ? rows : [])
-      .map((row) => {
-        for (const key of keys) {
-          const value = n(row[key]);
-          if (value !== null) return value;
-        }
-        return null;
-      })
-      .filter((value) => value !== null);
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-  }
-  function groupByHour(rows, caseFilter = /nasa/i) {
-    const map = new Map();
+  function groupByDaySamCen(rows, caseFilter = /nasa/i) {
+    const sums = new Map();
     (Array.isArray(rows) ? rows : []).forEach((r) => {
       if (!caseFilter.test(`${r.caso_sam || ""} ${r.fuente_meteorologica || ""}`)) return;
-      const dt = new Date(String(r.timestamp).replace(" ", "T"));
-      const h = Number.isFinite(dt.getHours()) ? dt.getHours() : Number(String(r.timestamp).slice(11, 13));
-      if (!map.has(h)) map.set(h, []);
-      map.get(h).push(r);
+      const day = String(r.timestamp).slice(0, 10);
+      if (!sums.has(day)) sums.set(day, { sam: 0, cen: 0 });
+      const acc = sums.get(day);
+      acc.sam += n(r.sam_e_ac_mwh) || 0;
+      acc.cen += n(r.cen_disponible_mwh) || 0;
     });
-    return Array.from({ length: 24 }, (_, h) => ({
-      hora: h,
-      hora_label: `${String(h).padStart(2, "0")}:00`,
-      reducciones_cen_mwh: avg(map.get(h) || [], "reducciones_cen_mwh"),
-      precio_spot_usd_mwh: avgAny(map.get(h) || [], ["precio_marginal_horario_usd_mwh", "precio_spot_usd_mwh", "precio_marginal_usd_mwh"]),
-      sam_e_ac_mwh: avg(map.get(h) || [], "sam_e_ac_mwh"),
-      meteo_ghi_wm2: avg(map.get(h) || [], "meteo_ghi_wm2"),
-    }));
+    const dates = Array.from(sums.keys()).sort();
+    const round2 = (v) => Math.round(v * 100) / 100;
+    return {
+      dates,
+      sam_mwh: dates.map((d) => round2(sums.get(d).sam)),
+      cen_disp_mwh: dates.map((d) => round2(sums.get(d).cen)),
+      residual_mwh: dates.map((d) => round2(sums.get(d).sam - sums.get(d).cen)),
+    };
+  }
+  function groupBySamCenHour(rows, caseFilter = /nasa/i) {
+    const sums = new Map();
+    (Array.isArray(rows) ? rows : []).forEach((r) => {
+      if (!caseFilter.test(`${r.caso_sam || ""} ${r.fuente_meteorologica || ""}`)) return;
+      const h = Number(String(r.timestamp).slice(11, 13));
+      if (!sums.has(h)) sums.set(h, { sam: 0, cen: 0, count: 0 });
+      const acc = sums.get(h);
+      acc.sam += n(r.sam_e_ac_mwh) || 0;
+      acc.cen += n(r.cen_disponible_mwh) || 0;
+      acc.count += 1;
+    });
+    const hours = Array.from({ length: 24 }, (_, h) => h);
+    return {
+      hours,
+      sam_mwh: hours.map((h) => { const a = sums.get(h); return a && a.count ? a.sam / a.count : null; }),
+      cen_disp_mwh: hours.map((h) => { const a = sums.get(h); return a && a.count ? a.cen / a.count : null; }),
+    };
+  }
+  const SEASON_MONTHS = { Verano: [1, 2, 12], "Otoño": [3, 4, 5], Invierno: [6, 7, 8], Primavera: [9, 10, 11] };
+  function groupBySeasonHour(rows, caseFilter = /nasa/i) {
+    const seasons = Object.keys(SEASON_MONTHS);
+    const sums = {};
+    seasons.forEach((s) => { sums[s] = new Map(); });
+    (Array.isArray(rows) ? rows : []).forEach((r) => {
+      if (!caseFilter.test(`${r.caso_sam || ""} ${r.fuente_meteorologica || ""}`)) return;
+      const ts = String(r.timestamp);
+      const month = Number(ts.slice(5, 7));
+      const h = Number(ts.slice(11, 13));
+      const season = seasons.find((s) => SEASON_MONTHS[s].includes(month));
+      if (!season) return;
+      const map = sums[season];
+      if (!map.has(h)) map.set(h, { sam: 0, count: 0 });
+      const acc = map.get(h);
+      acc.sam += n(r.sam_e_ac_mwh) || 0;
+      acc.count += 1;
+    });
+    const hours = Array.from({ length: 24 }, (_, h) => h);
+    const series = {};
+    seasons.forEach((s) => {
+      series[s] = hours.map((h) => { const a = sums[s].get(h); return a && a.count ? a.sam / a.count : null; });
+    });
+    return { hours, series };
+  }
+  function buildArchitectureTables(architecture) {
+    const submodels = Array.isArray(architecture?.submodelos) ? architecture.submodelos : [];
+    const totals = architecture?.totales || {};
+    const familiasRaw = Array.isArray(architecture?.familias) ? architecture.familias : [];
+    const moduloGroups = new Map();
+    submodels.forEach((s) => {
+      const wp = s.modulo_wp;
+      if (!moduloGroups.has(wp)) moduloGroups.set(wp, { cantidad_modulos: 0, potencia_mwdc: 0 });
+      const acc = moduloGroups.get(wp);
+      acc.cantidad_modulos += (n(s.strings) || 0) * (n(s.modulos_por_string) || 0);
+      acc.potencia_mwdc += n(s.potencia_dc_mwp) || 0;
+    });
+    const table31 = Array.from(moduloGroups.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([wp, v]) => ({ potencia_w: wp, cantidad_modulos: v.cantidad_modulos, potencia_mwdc: v.potencia_mwdc }));
+    const table32 = familiasRaw
+      .map((fr) => {
+        const subs = submodels.filter((s) => s.familia === fr.familia);
+        return {
+          familia: fr.familia,
+          modulo_wp: fr.modulo_wp,
+          strings: sum(subs, "strings"),
+          inversores: sum(subs, "inversores"),
+          potencia_dc_mwp: sum(subs, "potencia_dc_mwp"),
+          submodelos: fr.submodelos || subs.map((s) => s.submodelo),
+        };
+      })
+      .sort((a, b) => String(a.familia).localeCompare(String(b.familia)));
+    return {
+      table31,
+      table32,
+      table33: submodels,
+      archKpis: {
+        potencia_dc_mwp: totals.potencia_dc_mwp,
+        modulos: table31.reduce((acc, r) => acc + r.cantidad_modulos, 0),
+        strings: totals.strings,
+        inversores: totals.inversores,
+        centros_transformacion: 60,
+        submodelos_sam: totals.submodelos,
+      },
+    };
+  }
+  function computeWaterfall(k) {
+    const residuoTotal = n(k.residuo_total_sam_nasa_generacion_real_gwh) || 0;
+    const genReal = n(k.energia_generacion_real_cen_gwh) || 0;
+    const d1 = n(k.delta_1_sam_centralizado_gwh) || 0;
+    const d2 = n(k.delta_2_centralizado_disponible_gwh) || 0;
+    const d3 = n(k.delta_3_reducciones_gwh) || 0;
+    const start = genReal + residuoTotal;
+    const step1 = start - d1;
+    const step2 = step1 - d2;
+    const step3 = step2 - d3;
+    return {
+      start_sam_common_gwh: start,
+      step1_pronostico_equiv_gwh: step1,
+      step2_cen_disponible_equiv_gwh: step2,
+      step3_generacion_real_gwh: step3,
+      delta_1: d1,
+      delta_2: d2,
+      delta_3: d3,
+    };
+  }
+  function unifilarTransformer3w(cx, cy, r, color) {
+    const offs = [[0, -r * 0.55], [-r * 0.5, r * 0.4], [r * 0.5, r * 0.4]];
+    return offs
+      .map(([dx, dy]) => `<circle cx="${(cx + dx).toFixed(1)}" cy="${(cy + dy).toFixed(1)}" r="${(r * 0.62).toFixed(1)}" fill="none" stroke="${color}" stroke-width="1.4"/>`)
+      .join("");
+  }
+  function unifilarBreaker(x, y, size = 6, color = "#52514e") {
+    return `<rect x="${(x - size / 2).toFixed(1)}" y="${(y - size / 2).toFixed(1)}" width="${size}" height="${size}" fill="#fff" stroke="${color}" stroke-width="1.3"/>`;
+  }
+  function unifilarCapBank(x, y, color = "#52514e") {
+    return `<g stroke="${color}" stroke-width="1.3">
+      <line x1="${x}" y1="${y}" x2="${x}" y2="${y + 8}"/>
+      <line x1="${x - 6}" y1="${y + 8}" x2="${x + 6}" y2="${y + 8}"/>
+      <line x1="${x - 6}" y1="${y + 12}" x2="${x + 6}" y2="${y + 12}"/>
+      <line x1="${x}" y1="${y + 12}" x2="${x}" y2="${y + 18}"/>
+    </g>`;
+  }
+  function buildUnifilarSvg(archKpis = {}) {
+    const W = 1000, H = 300;
+    const navy = "#1f4773", ink2 = "#52514e", teal = "#0fc8aa";
+    const parts = [];
+    parts.push(`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;background:#fff;border:1px solid #e5e9f0;border-radius:6px;font-family:Arial,Helvetica,sans-serif;">`);
+    parts.push(`<defs>
+      <marker id="unifilarArrow" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z" fill="${ink2}"/></marker>
+      <pattern id="unifilarPvHatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+        <line x1="0" y1="0" x2="0" y2="6" stroke="#2a78d6" stroke-width="1.6"/>
+      </pattern>
+    </defs>`);
+    const yMain = 150;
+    const modulos = fmtInt(archKpis.modulos);
+    const strings = fmtInt(archKpis.strings);
+    const inversores = fmtInt(archKpis.inversores);
+
+    let x = 20;
+    parts.push(`<rect x="${x}" y="${yMain - 40}" width="70" height="80" rx="4" fill="url(#unifilarPvHatch)" fill-opacity="0.35" stroke="${navy}" stroke-width="1.4"/>`);
+    parts.push(`<text x="${x + 35}" y="${yMain + 52}" font-size="9.5" text-anchor="middle" fill="#1f2937" font-weight="700">Campo FV</text>`);
+    parts.push(`<text x="${x + 35}" y="${yMain + 64}" font-size="8" text-anchor="middle" fill="${ink2}">${modulos} módulos</text>`);
+    parts.push(`<text x="${x + 35}" y="${yMain + 75}" font-size="8" text-anchor="middle" fill="${ink2}">${strings} strings</text>`);
+
+    let x2 = x + 70, x3 = x2 + 55;
+    parts.push(`<line x1="${x2}" y1="${yMain}" x2="${x3 - 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.6" marker-end="url(#unifilarArrow)"/>`);
+    parts.push(`<text x="${(x2 + x3) / 2}" y="${yMain - 8}" font-size="7.5" text-anchor="middle" fill="${ink2}">DC</text>`);
+
+    const invCx = x3 + 20;
+    parts.push(`<rect x="${invCx - 24}" y="${yMain - 22}" width="48" height="44" rx="4" fill="#eaf1fb" stroke="${navy}" stroke-width="1.4"/>`);
+    parts.push(`<path d="M ${invCx - 14} ${yMain} q 5 -10 10 0 t 10 0" fill="none" stroke="${navy}" stroke-width="1.4"/>`);
+    parts.push(`<text x="${invCx}" y="${yMain + 34}" font-size="9.5" text-anchor="middle" fill="#1f2937" font-weight="700">Inversores</text>`);
+    parts.push(`<text x="${invCx}" y="${yMain + 46}" font-size="8" text-anchor="middle" fill="${ink2}">${inversores} × Sungrow</text>`);
+    parts.push(`<text x="${invCx}" y="${yMain + 57}" font-size="8" text-anchor="middle" fill="${ink2}">SG3125HV-MV-30</text>`);
+
+    let x4 = invCx + 24, x5 = x4 + 45;
+    parts.push(`<line x1="${x4}" y1="${yMain}" x2="${x5 - 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.6" marker-end="url(#unifilarArrow)"/>`);
+    parts.push(`<text x="${(x4 + x5) / 2}" y="${yMain - 8}" font-size="7.5" text-anchor="middle" fill="${ink2}">0,6 kV AC</text>`);
+
+    const txCx = x5 + 22;
+    parts.push(unifilarTransformer3w(txCx, yMain, 15, navy));
+    parts.push(`<text x="${txCx}" y="${yMain + 38}" font-size="9.5" text-anchor="middle" fill="#1f2937" font-weight="700">60 Centros de</text>`);
+    parts.push(`<text x="${txCx}" y="${yMain + 49}" font-size="9.5" text-anchor="middle" fill="#1f2937" font-weight="700">Transformación</text>`);
+    parts.push(`<text x="${txCx}" y="${yMain + 61}" font-size="8" text-anchor="middle" fill="${ink2}">Transf. bloque 3 dev.</text>`);
+    parts.push(`<text x="${txCx}" y="${yMain + 71}" font-size="8" text-anchor="middle" fill="${ink2}">0,6 / 33 kV · 6,25 MVA</text>`);
+
+    let x6 = txCx + 20, x7 = x6 + 45;
+    parts.push(`<line x1="${x6}" y1="${yMain}" x2="${x7 - 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.6" marker-end="url(#unifilarArrow)"/>`);
+
+    const bus1x0 = x7, bus1x1 = bus1x0 + 90;
+    parts.push(`<line x1="${bus1x0}" y1="${yMain}" x2="${bus1x1}" y2="${yMain}" stroke="${navy}" stroke-width="4"/>`);
+    parts.push(unifilarBreaker(bus1x0 + 30, yMain));
+    parts.push(`<text x="${(bus1x0 + bus1x1) / 2}" y="${yMain - 10}" font-size="8.5" text-anchor="middle" fill="#1f2937" font-weight="700">Red colectora 33 kV</text>`);
+    parts.push(`<text x="${(bus1x0 + bus1x1) / 2}" y="${yMain + 18}" font-size="8" text-anchor="middle" fill="${ink2}">20 circuitos colectores</text>`);
+    parts.push(`<line x1="${bus1x0 + 65}" y1="${yMain}" x2="${bus1x0 + 65}" y2="${yMain + 20}" stroke="${ink2}" stroke-width="1.3"/>`);
+    parts.push(unifilarCapBank(bus1x0 + 65, yMain + 20));
+    parts.push(`<text x="${bus1x0 + 65}" y="${yMain + 58}" font-size="7.5" text-anchor="middle" fill="${ink2}">4 × banco</text>`);
+    parts.push(`<text x="${bus1x0 + 65}" y="${yMain + 68}" font-size="7.5" text-anchor="middle" fill="${ink2}">10 MVAr</text>`);
+
+    let x8 = bus1x1, x9 = x8 + 45;
+    parts.push(`<line x1="${x8}" y1="${yMain}" x2="${x9 - 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.6" marker-end="url(#unifilarArrow)"/>`);
+
+    const bus2x0 = x9, bus2x1 = bus2x0 + 20;
+    [-24, -8, 8, 24].forEach((dy) => {
+      parts.push(`<line x1="${bus2x0}" y1="${yMain + dy}" x2="${bus2x1}" y2="${yMain + dy}" stroke="${navy}" stroke-width="4"/>`);
+    });
+    [-24, -8, 8, 24].forEach((dy) => {
+      parts.push(`<line x1="${x9 - 14}" y1="${yMain}" x2="${bus2x0}" y2="${yMain + dy}" stroke="${ink2}" stroke-width="1.1"/>`);
+    });
+    parts.push(`<text x="${(bus2x0 + bus2x1) / 2}" y="${yMain - 38}" font-size="8" text-anchor="middle" fill="#1f2937" font-weight="700">4 barras</text>`);
+    parts.push(`<text x="${(bus2x0 + bus2x1) / 2}" y="${yMain + 42}" font-size="8" text-anchor="middle" fill="${ink2}">33 kV</text>`);
+
+    let x10 = bus2x1, x11 = x10 + 40;
+    [-16, 16].forEach((dy) => {
+      parts.push(`<line x1="${x10}" y1="${yMain + dy}" x2="${x11 - 14}" y2="${yMain + dy}" stroke="${ink2}" stroke-width="1.4"/>`);
+    });
+    parts.push(`<line x1="${x11 - 14}" y1="${yMain - 16}" x2="${x11}" y2="${yMain}" stroke="${ink2}" stroke-width="1.4"/>`);
+    parts.push(`<line x1="${x11 - 14}" y1="${yMain + 16}" x2="${x11}" y2="${yMain}" stroke="${ink2}" stroke-width="1.4"/>`);
+    parts.push(`<line x1="${x11}" y1="${yMain}" x2="${x11 + 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.4" marker-end="url(#unifilarArrow)"/>`);
+
+    const tx2Cx = x11 + 34;
+    parts.push(unifilarTransformer3w(tx2Cx, yMain, 18, navy));
+    parts.push(`<text x="${tx2Cx}" y="${yMain + 42}" font-size="9.5" text-anchor="middle" fill="#1f2937" font-weight="700">2 Transf. principales</text>`);
+    parts.push(`<text x="${tx2Cx}" y="${yMain + 53}" font-size="8" text-anchor="middle" fill="${ink2}">220 / 33 / 33 kV</text>`);
+    parts.push(`<text x="${tx2Cx}" y="${yMain + 64}" font-size="8" text-anchor="middle" fill="${ink2}">150 / 200 / 250 MVA</text>`);
+
+    let x12 = tx2Cx + 22, x13 = x12 + 40;
+    parts.push(`<line x1="${x12}" y1="${yMain}" x2="${x13 - 14}" y2="${yMain}" stroke="${ink2}" stroke-width="1.6" marker-end="url(#unifilarArrow)"/>`);
+
+    const bus3x0 = x13, bus3x1 = bus3x0 + 26;
+    parts.push(`<line x1="${bus3x0}" y1="${yMain}" x2="${bus3x1}" y2="${yMain}" stroke="${navy}" stroke-width="5"/>`);
+    parts.push(`<text x="${(bus3x0 + bus3x1) / 2}" y="${yMain - 12}" font-size="8" text-anchor="middle" fill="#1f2937" font-weight="700">S/E CEME1</text>`);
+    parts.push(`<text x="${(bus3x0 + bus3x1) / 2}" y="${yMain + 18}" font-size="8" text-anchor="middle" fill="${ink2}">220 kV</text>`);
+
+    const lineX0 = bus3x1, lineX1 = lineX0 + 90;
+    parts.push(`<line x1="${lineX0}" y1="${yMain}" x2="${lineX1 - 14}" y2="${yMain}" stroke="${teal}" stroke-width="2" stroke-dasharray="7,4" marker-end="url(#unifilarArrow)"/>`);
+    parts.push(`<text x="${(lineX0 + lineX1) / 2}" y="${yMain - 10}" font-size="8" text-anchor="middle" fill="#0a8a71" font-weight="700">1 × 220 kV</text>`);
+    parts.push(`<text x="${(lineX0 + lineX1) / 2}" y="${yMain + 18}" font-size="8" text-anchor="middle" fill="#0a8a71">≈ 9,2 km</text>`);
+
+    const destX = lineX1;
+    parts.push(`<rect x="${destX}" y="${yMain - 24}" width="88" height="48" rx="5" fill="#eafaf5" stroke="${teal}" stroke-width="1.5"/>`);
+    parts.push(`<text x="${destX + 44}" y="${yMain - 2}" font-size="10.5" text-anchor="middle" fill="#1f2937" font-weight="700">S/E Mirage</text>`);
+    parts.push(`<text x="${destX + 44}" y="${yMain + 12}" font-size="9.5" text-anchor="middle" fill="${ink2}">220 kV · SEN</text>`);
+    const gx = destX + 44, gy = yMain + 24;
+    parts.push(`<line x1="${gx}" y1="${gy}" x2="${gx}" y2="${gy + 8}" stroke="${ink2}" stroke-width="1.3"/>`);
+    [14, 9, 4].forEach((wdt, i) => {
+      const yy = gy + 8 + i * 4;
+      parts.push(`<line x1="${gx - wdt / 2}" y1="${yy}" x2="${gx + wdt / 2}" y2="${yy}" stroke="${ink2}" stroke-width="1.3"/>`);
+    });
+
+    const ppcX = invCx + 30, ppcY = yMain + 95;
+    parts.push(`<rect x="${ppcX - 42}" y="${ppcY - 14}" width="84" height="28" rx="4" fill="#fff7ea" stroke="#c98500" stroke-width="1.3" stroke-dasharray="3,2"/>`);
+    parts.push(`<text x="${ppcX}" y="${ppcY + 4}" font-size="8.5" text-anchor="middle" fill="#8a5a00" font-weight="700">PPC — Control</text>`);
+    parts.push(`<line x1="${ppcX}" y1="${ppcY - 14}" x2="${txCx}" y2="${yMain + 14}" stroke="#c98500" stroke-width="1" stroke-dasharray="3,2"/>`);
+
+    parts.push("</svg>");
+    return parts.join("");
   }
   function reportSection(num, title, body, className = "") {
     const autoClass = num === "1." ? "" : "sa-page-break";
-    const specialClass = num === "10." ? "sa-conclusion-section" : num === "A." ? "sa-annex-section" : "";
+    const specialClass = num === "6." ? "sa-conclusion-section" : num === "A." ? "sa-annex-section" : "";
     const classes = ["sa-report-section", autoClass, specialClass, className].filter(Boolean).join(" ");
     return `<section class="${classes}"><h2><span>${num}</span>${title}</h2><div class="sa-section-body">${body}</div></section>`;
   }
+  function reportSubheading(title) {
+    return `<h3 class="sa-report-subheading">${escapeHtml(title)}</h3>`;
+  }
   function kpiCard(title, value, unit, sub, accent = "") {
     return `<article class="sa-report-kpi ${accent}"><p>${escapeHtml(title)}</p><strong>${escapeHtml(value)}</strong><small>${escapeHtml(unit)}${sub ? ` — ${escapeHtml(sub)}` : ""}</small></article>`;
+  }
+  function kpiRow(items, cols = 4) {
+    return `<div class="sa-report-kpi-row n${cols}">${items.map(([title, value, unit, accent]) => kpiCard(title, value, unit || "", "", accent || "")).join("")}</div>`;
+  }
+  function statRow(items) {
+    return `<div class="sa-stat-row">${items.map(([label, value]) => `<div class="sa-stat-tile"><p>${escapeHtml(label)}</p><strong>${value}</strong></div>`).join("")}</div>`;
   }
   function table(headers, rows, cls = "") {
     return `<table class="sa-report-table ${cls}"><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   }
   function findMetric(metrics, regex) { return (metrics || []).find((r) => regex.test(r.comparacion || "")) || {}; }
-  function findDelta(deltas, regex) { return (deltas || []).find((r) => regex.test(`${r.eslabon || ""} ${r.comparacion || ""}`)) || {}; }
 
-  function reportUnavailablePage(message = "Información no disponible. Ejecute nuevamente el script correspondiente.") {
-    return `<p class="sa-report-note"><b>${escapeHtml(message)}</b></p>`;
-  }
-  function reportMetricValue(value, decimals = 2, fallback = "N/D") {
-    const num = n(value);
-    if (num === null) return fallback;
-    return fmt(num, decimals);
-  }
-  function reportMetricNumber(row, keys) {
-    for (const key of keys) {
-      const value = n(row?.[key]);
-      if (value !== null) return value;
-    }
-    return null;
-  }
-  function reportCompareRows(metricsBundle) {
-    const rows = Array.isArray(metricsBundle?.metricas_dashboard)
-      ? metricsBundle.metricas_dashboard
-      : (Array.isArray(metricsBundle?.metricas) ? metricsBundle.metricas : []);
-    return ["GHI", "DNI", "DHI"]
-      .map((variable) => rows.find((row) =>
-        String(row.variable || "").toUpperCase() === variable &&
-        /horaria/i.test(String(row.escala || ""))
-      ) || rows.find((row) => String(row.variable || "").toUpperCase() === variable))
-      .filter(Boolean);
-  }
-  function reportAnnualDeltaPct(row) {
-    const direct = reportMetricNumber(row, [
-      "delta_anual_pct",
-      "delta_pct_anual",
-      "delta_pct_nasa_respecto_tmy",
-      "diferencia_anual_pct",
-      "sesgo_anual_pct",
-    ]);
-    if (direct !== null) return direct;
-    const tmy = reportMetricNumber(row, ["tmy_anual", "tmy_anual_kwh_m2", "tmy_total", "tmy_media"]);
-    const nasa = reportMetricNumber(row, ["nasa_anual", "nasa_anual_kwh_m2", "nasa_total", "nasa_media"]);
-    if (tmy === null || nasa === null || tmy === 0) return null;
-    return ((nasa - tmy) / tmy) * 100;
-  }
-  function buildReportCompareInterpretation(rows) {
-    const valid = rows.filter((row) => row && row.variable);
-    if (!valid.length) return "Información no disponible. Ejecute nuevamente el script correspondiente.";
-    const maxNrmse = valid
-      .map((row) => ({ row, value: n(row.nrmse_pct_media_tmy) }))
-      .filter((item) => item.value !== null)
-      .sort((a, b) => b.value - a.value)[0]?.row;
-    const bestCorr = valid
-      .map((row) => ({ row, value: n(row.correlacion_r) }))
-      .filter((item) => item.value !== null)
-      .sort((a, b) => b.value - a.value)[0]?.row;
-    const maxBias = valid
-      .map((row) => ({ row, value: Math.abs(n(row.sesgo_pct_media_tmy) ?? 0) }))
-      .sort((a, b) => b.value - a.value)[0]?.row;
-    const parts = [];
-    if (maxNrmse) parts.push(`Las diferencias relativas más importantes se observan en ${escapeHtml(maxNrmse.variable)} (nRMSE ${reportMetricValue(maxNrmse.nrmse_pct_media_tmy, 1)}%).`);
-    if (bestCorr) parts.push(`${escapeHtml(bestCorr.variable)} presenta la mayor concordancia entre fuentes (r = ${reportMetricValue(bestCorr.correlacion_r, 3)}).`);
-    if (maxBias) parts.push(`El sesgo porcentual más alto en valor absoluto corresponde a ${escapeHtml(maxBias.variable)} (${reportMetricValue(maxBias.sesgo_pct_media_tmy, 1)}%).`);
-    return parts.join(" ");
-  }
-  function buildReportCompareMetricsSection(metricsBundle) {
-    const rows = reportCompareRows(metricsBundle);
-    const hasData = rows.some((row) => [
-      reportAnnualDeltaPct(row),
-      n(row.sesgo_pct_media_tmy),
-      n(row.mbe_nasa_menos_tmy),
-      n(row.mae),
-      n(row.rmse),
-      n(row.nrmse_pct_media_tmy),
-      n(row.correlacion_r),
-      n(row.r2),
-    ].some((value) => value !== null));
-    if (!rows.length || !hasData) return reportUnavailablePage();
-    const tableRows = rows.map((row) => [
-      `<b>${escapeHtml(row.variable)}</b>`,
-      reportMetricValue(reportAnnualDeltaPct(row), 2),
-      reportMetricValue(row.sesgo_pct_media_tmy, 2),
-      reportMetricValue(row.mbe_nasa_menos_tmy, 2),
-      reportMetricValue(row.mae, 2),
-      reportMetricValue(row.rmse, 2),
-      reportMetricValue(row.nrmse_pct_media_tmy, 2),
-      reportMetricValue(row.correlacion_r, 3),
-      reportMetricValue(row.r2, 3),
-    ]);
-    return `
-      <p><b>TMY Explorador Solar vs NASA POWER 2025</b></p>
-      ${table(["Variable", "Δ anual (%)", "Sesgo (%)", "MBE", "MAE", "RMSE", "nRMSE (%)", "Correlación r", "R²"], tableRows, "meteo-metrics")}
-      <p class="sa-report-note"><b>Interpretación automática:</b> ${buildReportCompareInterpretation(rows)}</p>
-      <p class="sa-report-note">La comparación corresponde a un análisis exploratorio entre un Año Meteorológico Típico (TMY) y una serie histórica correspondiente al año 2025 (NASA POWER). Estas métricas describen diferencias entre ambas representaciones del recurso solar y no constituyen validación contra terreno.</p>
-    `;
-  }
-  function reportRowsForCase(rows, regex = /nasa|2025/i) {
-    return (Array.isArray(rows) ? rows : []).filter((row) => regex.test(`${row.caso_sam || ""} ${row.nombre_caso || ""} ${row.fuente_meteorologica || ""}`));
-  }
-  function reportPrimaryClippingKpi(clippingBundle) {
-    return reportRowsForCase(clippingBundle?.kpis, /nasa|2025/i)[0] || (Array.isArray(clippingBundle?.kpis) ? clippingBundle.kpis[0] : null);
-  }
-  function buildReportClippingSection(clippingBundle) {
-    const kpi = reportPrimaryClippingKpi(clippingBundle);
-    const monthly = Array.isArray(clippingBundle?.monthly) ? clippingBundle.monthly : [];
-    const dcVsAc = Array.isArray(clippingBundle?.dc_vs_ac) ? clippingBundle.dc_vs_ac : [];
-    if (!clippingBundle || !kpi || !monthly.length) return reportUnavailablePage();
-    const kpisHtml = `<div class="sa-report-kpi-grid">
-      ${kpiCard("ENERGÍA PERDIDA POR CLIPPING", fmt(kpi.energia_clipping_mwh, 1), "MWh", kpi.nombre_caso || "Caso SAM", "orange")}
-      ${kpiCard("CLIPPING", fmt(kpi.clipping_pct_vs_ac_mas_clip ?? kpi.clipping_pct_vs_dc, 2), "%", "Respecto a energía FV modelada", "red")}
-      ${kpiCard("POTENCIA MÁXIMA RECORTADA", fmt(kpi.potencia_clipping_max_mw, 1), "MW", "Máximo horario", "purple")}
-      ${kpiCard("HORAS CON CLIPPING", fmtInt(kpi.horas_con_clipping), "h", "Horas anuales", "green")}
-      ${kpiCard("MES CON MAYOR CLIPPING", kpi.mes_mayor_clipping || "N/D", "", "Mayor pérdida mensual", "orange")}
-      ${kpiCard("MÉTODO", kpi.metodo_clipping || "estimado_desde_dc_ac_limit", "", "Estimación DC/AC")}
-    </div>`;
-    const compareRows = [[
-      "Fenómeno interno de planta FV<br>Asociado a la limitación de conversión del inversor<br>Estimado desde series DC/AC obtenidas mediante SAM y límites AC<br>Independiente de órdenes CEN<br>No se usa actualmente como señal de carga BESS",
-      "Fenómeno operacional externo<br>Determinado desde registros CEN<br>Reducciones CEN / curtailment operacional<br>Señal energética candidata para BESS<br>Recuperación efectiva depende de potencia, capacidad, SOC, eficiencia y restricciones",
-    ]];
-    return `
-      ${kpisHtml}
-      <p class="sa-report-figure-title">Pérdidas mensuales por clipping</p>
-      <div class="sa-report-chart"><canvas id="saReportClippingMonthlyChart"></canvas></div>
-      ${dcVsAc.length ? `<p class="sa-report-figure-title">Perfil horario DC vs AC</p><div class="sa-report-chart"><canvas id="saReportClippingDcAcChart"></canvas></div>` : ""}
-      <p class="sa-report-note">El clipping se informa como estimación DC/AC: energía estimada a partir de las series DC/AC obtenidas mediante SAM y de la capacidad máxima de conversión AC de los inversores. No corresponde a una orden CEN y no se usa actualmente como señal de carga del BESS.</p>
-      ${table(["CLIPPING", "CURTAILMENT"], compareRows, "clipping-compare")}
-    `;
-  }
-
-  function buildReportArchitectureSection(architecture) {
-    const submodels = Array.isArray(architecture?.submodelos) ? architecture.submodelos : [];
-    if (!architecture || !submodels.length) return reportUnavailablePage("Arquitectura CEME1 no disponible. Revise dashboard/data/ceme1_architecture.json.");
-    const totals = architecture.totales || {};
-    const rows = submodels.map((row) => [
-      `<b>${escapeHtml(row.submodelo)}</b>`,
-      `Familia ${escapeHtml(row.familia)}`,
-      escapeHtml(row.orientacion),
-      `${fmt(row.azimut_grados, 0)}° / ${fmt(row.inclinacion_grados, 0)}°`,
-      `${fmtInt(row.modulo_wp)} W`,
-      fmtInt(row.strings),
-      fmtInt(row.inversores),
-      `${fmt(row.potencia_dc_mwp, 4)} MWdc`,
-    ]);
-    rows.push([
-      "<b>Total</b>",
-      "CEME1",
-      "Este/Oeste",
-      "Azimut 90° / 270° - inclinacion 5°",
-      `${fmtInt(totals.modulos_por_string)} mod/string`,
-      `<b>${fmtInt(totals.strings)}</b>`,
-      `<b>${fmtInt(totals.inversores)}</b>`,
-      `<b>${fmt(totals.potencia_dc_mwp, 4)} MWdc</b>`,
-    ]);
-    return `
-      <p>${escapeHtml(architecture.metadata?.nota || "Los seis submodelos constituyen una representacion equivalente de una unica planta CEME1.")}</p>
-      <p class="sa-report-note">Geometria equivalente: Este 5° \\ / 5° Oeste. Los submodelos SC01-SC06 no representan seis plantas independientes.</p>
-      ${table(["SC", "Familia", "Orientacion", "Azimut / inclinacion", "Modulo", "Strings", "Inversores", "Potencia DC"], rows, "architecture")}
-    `;
-  }
-
-  function buildReportHtml(validation, compareMetricsBundle = null, clippingBundle = null, architectureBundle = null) {
+  function buildReportHtml(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles) {
     const k = validation.kpis || {};
-    const fuentes = validation.fuentes_datos || [];
-    const resumen = validation.resumen_anual || [];
+    const mensual = validation.mensual || [];
     const metricas = validation.metricas || [];
     const deltas = validation.deltas || [];
-    const limitaciones = validation.limitaciones || [];
-    const samNasa = k.energia_sam_nasa_2025_gwh;
-    const central = k.energia_pronostico_centralizado_cen_gwh;
+    const resumenAnual = validation.resumen_anual || [];
+    const { table31, table32, table33, archKpis } = buildArchitectureTables(architectureBundle);
+    const mk = meteoBundle?.kpis || {};
+    const meteoMensual = meteoBundle?.mensual || [];
     const horasFull = n(k.horas_t_full) ?? 8760;
-    const horasCommon = n(k.horas_t_common_forecast) ?? 8736;
-    const horasPronostico = n(k.energia_pronostico_centralizado_cen_horas) ?? horasCommon;
-    const errorCierre = n(k.control_deltas_error_gwh);
+    const horasPronostico = n(k.energia_pronostico_centralizado_cen_horas) ?? 8736;
 
-    const intro = `El Bloque 1 establece la base de simulación técnica de CEME1 y su contraste con la operación real del sistema eléctrico chileno durante 2025. SAM NASA 2025 alcanza <b>${fmt(samNasa, 1)} GWh</b> sobre <b>${fmtInt(horasFull)} h</b>, mientras que el Pronóstico centralizado CEN acumula <b>${fmt(central, 1)} GWh</b> sobre <b>${fmtInt(horasPronostico)} h disponibles</b>. No se imputan las 24 h faltantes del 31-07-2025. El residuo de ${fmt(k.residuo_sam_nasa_vs_cen_disponible_gwh, 1)} GWh frente a CEN disponible se interpreta como brecha técnico-operacional. Las Reducciones CEN de ${fmt(k.energia_reducciones_cen_gwh, 1)} GWh (${fmt(k.factor_reducciones_cen_pct, 1)}% del CEN disponible) constituyen una señal energética candidata para el análisis BESS; la recuperación efectiva se calcula posteriormente.`;
+    const mensualMax = mensual.length ? mensual.reduce((a, b) => ((n(b.sam_nasa_2025_gwh) ?? -Infinity) > (n(a.sam_nasa_2025_gwh) ?? -Infinity) ? b : a), mensual[0]) : {};
+    const mensualMin = mensual.length ? mensual.reduce((a, b) => ((n(b.sam_nasa_2025_gwh) ?? Infinity) < (n(a.sam_nasa_2025_gwh) ?? Infinity) ? b : a), mensual[0]) : {};
+    const egridMax = Math.max(0, ...(hourlyProfile.sam_mwh || []).map((v) => n(v) || 0));
+    const metricNasaCen = findMetric(metricas, /NASA.*CEN disponible/i);
+    const tmyDelta = (n(k.energia_sam_tmy_gwh) || 0) - (n(k.energia_sam_nasa_2025_gwh) || 0);
+    const sesgoAnual = n(k.energia_cen_disponible_gwh) ? (n(k.residuo_sam_nasa_vs_cen_disponible_gwh) / n(k.energia_cen_disponible_gwh)) * 100 : null;
 
-    const kpisHtml = `<div class="sa-report-kpi-grid">
-      ${kpiCard("ENERGÍA SAM NASA 2025", fmt(k.energia_sam_nasa_2025_gwh, 1), "GWh", `${fmtInt(horasFull)} h`, "green")}
-      ${kpiCard("ENERGÍA SAM TMY EXPLORADOR SOLAR", fmt(k.energia_sam_tmy_gwh, 1), "GWh", `${fmtInt(horasFull)} h`)}
-      ${kpiCard("PRONÓSTICO CENTRALIZADO CEN", fmt(k.energia_pronostico_centralizado_cen_gwh, 1), "GWh", `${fmtInt(horasPronostico)} h disponibles; 31-07-2025 sin imputación`, "purple")}
-      ${kpiCard("CEN DISPONIBLE", fmt(k.energia_cen_disponible_gwh, 1), "GWh", `${fmtInt(horasFull)} h`)}
-      ${kpiCard("GENERACIÓN REAL CEN", fmt(k.energia_generacion_real_cen_gwh, 1), "GWh", `${fmtInt(horasFull)} h`)}
-      ${kpiCard("REDUCCIONES CEN (CURTAILMENT)", fmt(k.energia_reducciones_cen_gwh, 1), "GWh", `${fmt(k.factor_reducciones_cen_pct, 1)}% del CEN disponible; señal candidata BESS`, "red")}
-      ${kpiCard("RESIDUO SAM NASA VS CEN DISPONIBLE", fmt(k.residuo_sam_nasa_vs_cen_disponible_gwh, 1), "GWh", `${fmt(k.residuo_sam_nasa_vs_cen_disponible_gwh / k.energia_cen_disponible_gwh * 100, 1)}% sobre CEN disponible`, "orange")}
-      ${kpiCard("COBERTURA COMÚN CON PRONÓSTICO", fmtInt(horasCommon), "h", "Base de ΔE1, ΔE2, ΔE3 y residuo total", "green")}
-    </div>`;
+    const block1 = `
+      <p class="sa-report-figure-title">Figura 1 — Diagrama unifilar CEME1 (simplificado)</p>
+      <div class="sa-arch-diagram">${buildUnifilarSvg(archKpis)}</div>
+      ${kpiRow([
+        ["Potencia DC", fmt(archKpis.potencia_dc_mwp, 2), "MWdc", "green"],
+        ["Módulos", fmtInt(archKpis.modulos), "", ""],
+        ["Strings", fmtInt(archKpis.strings), "", ""],
+        ["Inversores", fmtInt(archKpis.inversores), "", "purple"],
+        ["Centros de transformación", fmtInt(archKpis.centros_transformacion), "", ""],
+        ["Submodelos SAM", fmtInt(archKpis.submodelos_sam), "", "orange"],
+      ], 6)}
+      ${reportSubheading("Tabla 3-1 — Módulos solares y potencia nominal según configuración")}
+      ${table(["Potencia nominal del módulo", "Cantidad de módulos", "Potencia instalada"], table31.map((r) => [`${fmtInt(r.potencia_w)} W`, fmtInt(r.cantidad_modulos), `${fmt(r.potencia_mwdc, 2)} MWdc`]))}
+      ${reportSubheading("Tabla 3-2 — Configuración equivalente por familia técnica")}
+      ${table(["Familia", "Módulo", "Strings", "Inversores", "Potencia DC", "Submodelos"], table32.map((r) => [`<b>${escapeHtml(r.familia)}</b>`, `${fmtInt(r.modulo_wp)} W`, fmtInt(r.strings), fmtInt(r.inversores), `${fmt(r.potencia_dc_mwp, 2)} MWdc`, (r.submodelos || []).join(", ")]))}
+      ${reportSubheading("Tabla 3-3 — Submodelos SC01–SC06 implementados en SAM")}
+      ${table(["SC", "Familia", "Orientación", "Azimut / inclinación", "Módulo", "Strings", "Inversores", "Potencia DC"], table33.map((r) => [`<b>${escapeHtml(r.submodelo)}</b>`, escapeHtml(r.familia), escapeHtml(r.orientacion), `${fmt(r.azimut_grados, 0)}° / ${fmt(r.inclinacion_grados, 0)}°`, `${fmtInt(r.modulo_wp)} W`, fmtInt(r.strings), fmtInt(r.inversores), `${fmt(r.potencia_dc_mwp, 2)} MWdc`]))}
+      ${reportSubheading("Tabla 3-4 — Parámetros generales de implementación en SAM")}
+      ${table(["Parámetro", "Configuración"], [
+        ["Tipo de simulación", "PV Detailed"],
+        ["Modelo eléctrico del módulo", "CEC"],
+        ["Módulos", "JA Solar 540 W y 545 W"],
+        ["Inversor", "Modelo equivalente creado manualmente"],
+        ["Arquitectura", "Estructura fija Este-Oeste"],
+        ["Inclinación", "5°"],
+        ["Módulos por string", "30"],
+        ["Submodelos", "SC01-SC06"],
+        ["Resolución temporal", "Horaria"],
+        ["Caso meteorológico principal", "NASA POWER 2025"],
+        ["Referencia meteorológica adicional", "TMY Explorador Solar"],
+      ], "plain")}
+    `;
 
-    const fuentesRows = fuentes.map((r) => [escapeHtml(r.fuente), `<code>${escapeHtml(r.variable_dashboard)}</code>`, escapeHtml(r.uso_bloque1), escapeHtml(r.observacion)]);
-    const resumenRows = resumen.map((r) => {
-      const isReducciones = /reducciones|curtailment/i.test(r.senal || "");
-      const energy = n(r.energia_gwh ?? r.energia_anual_gwh);
-      const diffGwh = n(r.diferencia_vs_cen_disponible_misma_cobertura_gwh ?? r.diferencia_vs_cen_disponible_gwh);
-      const coverage = `${escapeHtml(r.cobertura_temporal || "--")} (${fmtInt(r.horas_cobertura)} h)`;
-      const diffTxt = isReducciones ? "Componente CEN disponible" : `${diffGwh > 0 ? "+" : ""}${fmt(diffGwh, 1)}`;
-      return [
-        escapeHtml(r.senal),
-        `<b>${fmt(energy, 1)}</b>`,
-        coverage,
-        diffTxt,
-        escapeHtml(isReducciones ? "Curtailment operacional; señal energética candidata para BESS" : r.interpretacion),
-      ];
-    });
-    const metricRows = metricas.map((r) => [`${escapeHtml(r.comparacion)}<br><small>Cobertura: ${fmtInt(r.horas_cobertura ?? r.n)} h</small>`, fmt(r.mbe_mwh, 2), fmt(r.mae_mwh, 2), fmt(r.rmse_mwh, 2), `<b>${fmt(r.nrmse_pct, 1)}</b>`, fmt(r.corr_pearson, 3), `${n(r.delta_pct) > 0 ? "+" : ""}${fmt(r.delta_pct, 1)}%`]);
-    const deltaRows = deltas.map((r) => [escapeHtml(r.eslabon), escapeHtml(r.comparacion), `<b>${fmt(r.energia_gwh ?? r.energia_anual_gwh, 1)}</b><br><small>${fmtInt(r.horas_cobertura)} h comunes</small>`, escapeHtml(r.interpretacion)]);
-    const limitationsRows = limitaciones.map((x) => {
-      const text = String(x);
-      const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      const clean = normalized.includes("validacion") && normalized.includes("estricta")
-        ? "El contraste constituye una verificación de consistencia técnico-operacional con referencias CEN."
-        : text;
-      return `<li>${escapeHtml(clean)}</li>`;
-    }).join("");
+    const block2 = `
+      ${statRow([
+        ["Caso meteorológico principal", "NASA POWER 2025"],
+        ["Cobertura", "100,00 %"],
+        ["Registros horarios", `${fmtInt(mk.registros_horarios)} h`],
+      ])}
+      <p class="sa-report-figure-title">G1 — Recurso solar mensual NASA POWER 2025</p>
+      <div class="sa-report-chart"><canvas id="saReportG1"></canvas></div>
+      <p class="sa-report-figure-title">G2 — Temperatura ambiente mensual 2025</p>
+      <div class="sa-report-chart"><canvas id="saReportG2"></canvas></div>
+      ${reportSubheading("Tabla T-METEO — Resumen meteorológico anual NASA POWER 2025")}
+      ${table(["GHI anual", "DNI anual", "DHI anual", "Temp. media", "Temp. mín", "Temp. máx", "Cobertura"], [[
+        `${fmt(mk.ghi_anual_kwh_m2_anio, 2)} kWh/m²`,
+        `${fmt(mk.dni_anual_kwh_m2_anio, 2)} kWh/m²`,
+        `${fmt(mk.dhi_anual_kwh_m2_anio, 2)} kWh/m²`,
+        `${fmt(mk.temperatura_media_anual_c, 2)} °C`,
+        `${fmt(mk.temperatura_min_c, 2)} °C`,
+        `${fmt(mk.temperatura_max_c, 2)} °C`,
+        `100,00 % (${fmtInt(mk.registros_horarios)} h)`,
+      ]])}
+    `;
 
-    const conclusion = `El Bloque 1 establece una base de simulación técnicamente sólida y metodológicamente defendible. SAM NASA 2025 alcanza ${fmt(k.energia_sam_nasa_2025_gwh, 1)} GWh sobre ${fmtInt(horasFull)} h y el Pronóstico centralizado CEN se informa sobre ${fmtInt(horasPronostico)} h disponibles. La descomposición común de ${fmtInt(horasCommon)} h cuantifica ΔE1 = ${fmt(k.delta_1_sam_centralizado_gwh, 1)} GWh, ΔE2 = ${fmt(k.delta_2_centralizado_disponible_gwh, 1)} GWh y ΔE3 = ${fmt(k.delta_3_reducciones_gwh, 1)} GWh, con error de cierre ${fmt(errorCierre, 6)} GWh. Las Reducciones CEN de ${fmt(k.energia_reducciones_cen_gwh, 1)} GWh constituyen una señal operacional candidata para el análisis BESS del Bloque 2.`;
+    const block3 = `
+      ${kpiRow([
+        ["Energía SAM NASA 2025", fmt(k.energia_sam_nasa_2025_gwh, 2), "GWh/año", "green"],
+        ["Potencia DC instalada", fmt(archKpis.potencia_dc_mwp, 2), "MWdc", ""],
+        ["Egrid máximo horario (prom.)", fmt(egridMax, 2), "MWh", ""],
+        ["Mes de mayor generación", mensualMax.mes_nombre || "N/D", "", "orange"],
+        ["Mes de menor generación", mensualMin.mes_nombre || "N/D", "", "purple"],
+      ], 5)}
+      <p class="sa-report-figure-title">G3 — Perfil horario promedio anual — Este / Oeste / Total AC</p>
+      <div class="sa-report-chart tall"><canvas id="saReportG3"></canvas></div>
+      <p class="sa-report-figure-title">G4 — Generación mensual SAM NASA POWER 2025</p>
+      <div class="sa-report-chart"><canvas id="saReportG4"></canvas></div>
+      <p class="sa-report-figure-title">G5 — Perfil horario promedio por estación</p>
+      <div class="sa-report-chart"><canvas id="saReportG5"></canvas></div>
+      ${reportSubheading("Comparación con año meteorológico típico (TMY)")}
+      ${statRow([
+        ["SAM NASA 2025", `${fmt(k.energia_sam_nasa_2025_gwh, 2)} GWh`],
+        ["SAM TMY Explorador Solar", `${fmt(k.energia_sam_tmy_gwh, 2)} GWh`],
+        ["Δ TMY − NASA", `${tmyDelta >= 0 ? "+" : ""}${fmt(tmyDelta, 2)} GWh`],
+      ])}
+    `;
+
+    const table35Rows = [
+      ["SAM NASA POWER 2025", horasFull, 0],
+      ["SAM TMY Explorador Solar", horasFull, 0],
+      ["CEN disponible", horasFull, 0],
+      ["Generación real CEN", horasFull, 0],
+      ["Reducciones CEN", horasFull, 0],
+    ].map(([s, reg, f]) => [s, fmtInt(reg), String(f), "100,00 %", "Año completo"]);
+    table35Rows.push(["Pronóstico centralizado CEN", fmtInt(horasPronostico), fmtInt(horasFull - horasPronostico), `${fmt((horasPronostico / horasFull) * 100, 2)} %`, "Horas comunes; sin imputación"]);
+
+    const block4 = `
+      ${reportSubheading("Tabla 3-5 — Cobertura temporal de las series")}
+      ${table(["Señal", "Registros", "Faltantes", "Cobertura", "Criterio"], table35Rows)}
+      <p class="sa-report-figure-title">G6 — SAM NASA 2025 vs CEN disponible — serie diaria (2025)</p>
+      <div class="sa-report-chart tall"><canvas id="saReportG6"></canvas></div>
+      <p class="sa-report-figure-title">G7 — SAM NASA vs CEN disponible — energía mensual</p>
+      <div class="sa-report-chart"><canvas id="saReportG7"></canvas></div>
+      <p class="sa-report-figure-title sa-subbreak">G8 — Perfil horario promedio: SAM vs CEN disponible</p>
+      <div class="sa-report-chart"><canvas id="saReportG8"></canvas></div>
+      <p class="sa-report-figure-title">G9 — Residuo diario: SAM NASA − CEN disponible</p>
+      <div class="sa-report-chart"><canvas id="saReportG9"></canvas></div>
+      <p class="sa-report-figure-title">G9b — SAM NASA vs CEN disponible (dispersión diaria, referencia 1:1)</p>
+      <div class="sa-report-chart"><canvas id="saReportG9b"></canvas></div>
+    `;
+
+    const block5 = `
+      ${kpiRow([
+        ["SAM NASA 2025", fmt(k.energia_sam_nasa_2025_gwh, 2), "GWh", "green"],
+        ["CEN disponible", fmt(k.energia_cen_disponible_gwh, 2), "GWh", ""],
+        ["Sesgo energético anual", `${sesgoAnual >= 0 ? "+" : ""}${fmt(sesgoAnual, 2)}`, "%", "orange"],
+        ["Correlación (NASA vs CEN disp.)", fmt(metricNasaCen.corr_pearson, 2), "", "purple"],
+      ], 4)}
+      ${kpiRow([
+        ["nRMSE (NASA vs CEN disp.)", fmt(metricNasaCen.nrmse_pct, 2), "%", ""],
+        ["Reducciones CEN", fmt(k.energia_reducciones_cen_gwh, 2), "GWh", "red"],
+        ["Reducciones / CEN disponible", fmt(k.factor_reducciones_cen_pct, 2), "%", "red"],
+      ], 3)}
+      ${reportSubheading("Tabla 3-6 — Resultados energéticos anuales (8.760 h)")}
+      ${table(["Señal", "Energía anual", "Resultado respecto de CEN disponible"], resumenAnual.map((r) => [
+        `<b>${escapeHtml(r.senal)}</b>`,
+        `${fmt(r.energia_gwh, 2)} GWh`,
+        r.diferencia_vs_cen_disponible_misma_cobertura_pct ? `${n(r.diferencia_vs_cen_disponible_misma_cobertura_pct) >= 0 ? "+" : ""}${fmt(r.diferencia_vs_cen_disponible_misma_cobertura_pct, 2)} %` : "Referencia",
+      ]))}
+      <p class="sa-report-figure-title">G10 — Balance energético anual</p>
+      <div class="sa-report-chart tall"><canvas id="saReportG10"></canvas></div>
+      ${reportSubheading("Tabla 3-7 — Descomposición energética (8.736 h comunes)")}
+      ${table(["Componente", "Comparación", "Energía"], deltas.map((r) => [escapeHtml(r.eslabon), escapeHtml(r.comparacion), `<b>${fmt(r.energia_gwh ?? r.energia_anual_gwh, 2)} GWh</b>`]))}
+      <p class="sa-report-figure-title">G11 — Descomposición ΔE1 – ΔE2 – ΔE3 (waterfall, 8.736 h comunes)</p>
+      <div class="sa-report-chart tall"><canvas id="saReportG11"></canvas></div>
+      ${reportSubheading("Tabla 3-8 — Indicadores de comparación")}
+      ${table(["Comparación", "Horas", "MBE", "MAE", "RMSE", "nRMSE", "Correlación"], metricas.map((r) => [
+        escapeHtml(r.comparacion),
+        fmtInt(r.horas_cobertura ?? r.n),
+        `${fmt(r.mbe_mwh, 2)} MWh`,
+        `${fmt(r.mae_mwh, 2)} MWh`,
+        `${fmt(r.rmse_mwh, 2)} MWh`,
+        `<b>${fmt(r.nrmse_pct, 2)} %</b>`,
+        fmt(r.corr_pearson, 2),
+      ]))}
+    `;
 
     return `
       <div class="sa-report-doc" id="saReportDoc">
         <header class="sa-report-main-title">
-          <h1>Reporte Técnico — Bloque 1</h1>
-          <h3>Modelación FV CEME1 y contraste operacional CEN 2025</h3>
+          <h1>Reporte Técnico CEME1</h1>
+          <h3>Fuente reproducible de tablas, gráficos y KPI del Capítulo 3 — Modelación fotovoltaica de CEME1</h3>
           <div class="sa-report-line"></div>
-          ${table(["Campo", "Detalle"], [
-            ["<b>Planta</b>", "CEME1 FV + DUNE BESS"],
-            ["<b>Período de análisis</b>", "Enero — Diciembre 2025"],
-            ["<b>Simulador FV</b>", "SAM (NREL) — Detailed Flat Plate PV"],
-            ["<b>Fuentes meteorológicas</b>", "NASA POWER 2025 / TMY Explorador Solar de Chile"],
-            ["<b>Referencias operacionales</b>", "CEN/SEN: Generación real, Reducciones, Pronóstico centralizado"],
-            ["<b>Barra de precio</b>", "Miraje 220 kV"],
-            ["<b>Coberturas temporales</b>", `T_FULL = ${fmtInt(horasFull)} h / T_COMMON_FORECAST = ${fmtInt(horasCommon)} h`],
-            ["<b>Fecha de generación</b>", new Date().toLocaleDateString("es-CL")],
-          ], "plain")}
-          <div class="sa-report-summary-box">${intro}</div>
         </header>
-        ${reportSection("1.", "Indicadores ejecutivos principales", kpisHtml)}
-        ${reportSection("2.", "Fuentes de datos y alcance metodológico", table(["Fuente", "Variable", "Uso en Bloque 1", "Observación crítica"], fuentesRows, "sources") + `<p class="sa-report-note"><b>Definición central:</b> CEN disponible = Generación real CEN + Reducciones CEN. El residuo SAM − CEN disponible no se interpreta como error puro del modelo FV, sino como discrepancia técnico-operacional frente a una referencia oficial construida con datos CEN.</p>`)}
-        ${reportSection("3.", "Arquitectura equivalente CEME1 - seis submodelos SAM", buildReportArchitectureSection(architectureBundle))}
-        ${reportSection("4.", "Resultados energéticos y evolución mensual", table(["Señal", "Energía [GWh]", "Cobertura", "Δ contextual [GWh]", "Interpretación"], resumenRows, "annual") + `<p class="sa-report-figure-title">Figura 1 — Comparación mensual: simulación SAM, pronóstico y operación CEN 2025</p><div class="sa-report-chart"><canvas id="saReportMonthlyChart"></canvas></div><p class="sa-report-note">Lectura: las series de ${fmtInt(horasFull)} h y el Pronóstico centralizado CEN de ${fmtInt(horasPronostico)} h se muestran con cobertura explícita. En julio el pronóstico sólo cubre 720 h por ausencia del 31-07-2025, sin imputación.</p>`)}
-        ${reportSection("5.", "Perfil horario - arquitectura Este/Oeste", `<p>La configuración Este/Oeste desplaza la contribución relativa de los subarreglos hacia horas anteriores y posteriores al mediodía, ensanchando el perfil diario agregado de generación.</p><p class="sa-report-note">Debido a la baja inclinación de 5° y al promedio anual, el efecto puede manifestarse como un perfil ensanchado más que como dos máximos diferenciados.</p><p class="sa-report-figure-title">Figura 2 — Perfil horario promedio anual SAM NASA 2025 (subarrays Este y Oeste)</p><div class="sa-report-chart"><canvas id="saReportEastWestChart"></canvas></div>`)}
-        ${reportSection("6.", "Métricas de consistencia técnico-operacional", `<p>Las métricas comparan SAM NASA 2025, SAM TMY y Pronóstico centralizado CEN frente a CEN disponible, informando la cobertura de cada contraste. La comparación SAM NASA 2025 vs Generación real CEN se mantiene como auxiliar e ilustrativa.</p>${table(["Comparación", "MBE [MWh]", "MAE [MWh]", "RMSE [MWh]", "nRMSE [%]", "Correlación r", "Sesgo anual [%]"], metricRows, "metrics")}<p class="sa-report-figure-title">Figura 3 — nRMSE y correlación de Pearson por comparación</p><div class="sa-report-chart"><canvas id="saReportMetricsChart"></canvas></div>`)}
-        ${reportSection("7.", "Descomposición operacional del residuo", `<p>La brecha total entre SAM NASA 2025 y la Generación real CEN se descompone exclusivamente sobre las ${fmtInt(horasCommon)} h comunes con pronóstico.</p>${table(["Eslabón", "Fórmula", "Energía [GWh]", "Interpretación"], deltaRows, "deltas")}<p class="sa-report-note">Control algebraico: ΔE1 + ΔE2 + ΔE3 = Residuo total; error de cierre ${fmt(errorCierre, 6)} GWh.</p><p class="sa-report-figure-title">Figura 4 — Descomposición operacional del residuo SAM NASA 2025 − Generación real CEN</p><div class="sa-report-chart"><canvas id="saReportDeltasChart"></canvas></div>`)}
-        ${reportSection("8.", "Reducciones CEN y precio marginal horario - señal candidata BESS", `<p>El perfil horario de las Reducciones CEN permite identificar energía candidata de carga para BESS y su relación con el precio marginal horario Miraje 220 kV. La energía efectivamente almacenada dependerá de potencia, capacidad, SOC, eficiencia y restricciones de operación.</p><p class="sa-report-figure-title">Figura 5 — Reducciones CEN promedio y precio marginal horario Miraje 220 kV (2025)</p><div class="sa-report-chart"><canvas id="saReportCurtailmentPriceChart"></canvas></div>`)}
-        ${reportSection("9.", "Limitaciones metodológicas del Bloque 1", `<ul class="sa-report-list">${limitationsRows}</ul>`)}
-        ${reportSection("10.", "Conclusión técnica y decisión para el Bloque 2", `<p>${conclusion}</p><div class="sa-report-decision"><b>DECISIÓN TÉCNICA — BLOQUE 1 CERRADO</b><ol><li>Usar SAM NASA 2025 como base de contraste operacional frente a CEN 2025.</li><li>Mantener SAM TMY Explorador Solar como referencia meteorológica típica del sitio.</li><li>Usar Reducciones CEN como señal energética candidata para el BESS.</li><li>El análisis BESS opera sobre datos reales CEN; el residuo SAM-CEN disponible no se propaga como energía recuperable.</li></ol></div>`)}
-        ${reportSection("A.", "Anexo — Respuestas técnicas para la defensa", table(["Pregunta de la comisión", "Respuesta técnica respaldada"], [
-          ["<b>¿SAM NASA 2025 es consistente con los datos CEN?</b>", `El contraste se informa como verificación de consistencia técnico-operacional. Las diferencias se calculan desde los JSON del Bloque 1 y respetan la cobertura temporal de cada comparación.`],
-          ["<b>¿Por qué el nRMSE no es menor?</b>", `El benchmark del Pronóstico CEN incorpora información operacional que SAM no modela. La comparación se informa como contraste operacional.`],
-          ["<b>¿El residuo SAM-CEN es error del modelo FV?</b>", `No. Es una discrepancia técnico-operacional descompuesta en ΔE1, ΔE2 y ΔE3.`],
-          ["<b>¿El curtailment es recuperable por BESS?</b>", `Parcialmente. La recuperabilidad depende del C-rate, SOC disponible y restricciones de red. Se analiza en Bloque 2.`],
-          ["<b>¿Por qué usar NASA POWER y TMY?</b>", `TMY caracteriza el recurso típico; NASA POWER 2025 permite contraste con el año operacional CEN 2025.`],
-          ["<b>¿La V invertida quedó representada?</b>", `El perfil Este/Oeste del JSON muestra la separación horaria de subarrays y evidencia la arquitectura física modelada.`],
-        ], "defense"))}
-        ${reportSection("B.", "Métricas comparativas entre fuentes meteorológicas", buildReportCompareMetricsSection(compareMetricsBundle))}
-        ${reportSection("C.", "Análisis del clipping de la planta fotovoltaica", buildReportClippingSection(clippingBundle))}
-        <footer class="sa-report-footer">Storage Analytics · CEME1 FV + DUNE BESS · Reporte Bloque 1</footer>
+        ${reportSection("1.", "Arquitectura y configuración CEME1", block1)}
+        ${reportSection("2.", "Meteorología y simulación SAM", block2)}
+        ${reportSection("3.", "Resultado de generación SAM", block3)}
+        ${reportSection("4.", "Contraste SAM – CEN", block4)}
+        ${reportSection("5.", "Balance energético y KPI estadísticos", block5)}
+        <footer class="sa-report-footer">Storage Analytics · CEME1 FV + DUNE BESS</footer>
       </div>`;
   }
 
-  function renderReportCharts(validation, profile, scadaRows, compareMetricsBundle = null, clippingBundle = null) {
+  function renderReportCharts(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles) {
     destroyCharts(state.reportCharts);
     if (typeof Chart === "undefined") return;
-    const monthly = validation.mensual || [];
-    const metrics = validation.metricas || [];
-    const deltas = validation.deltas || [];
-    const pRows = (profile.perfil_horario || profile.perfil_este_oeste_sam || []).filter((r) => /nasa|2025/i.test(`${r.caso_sam || ""} ${r.fuente_meteorologica || ""}`));
-    const hRows = groupByHour(scadaRows || [], /nasa|2025/i);
-    const hRowsCurtailment = hRows.map((row) => ({
-      ...row,
-      reducciones_cen_mwh: n(row.reducciones_cen_mwh) ?? 0,
-    }));
     const colors = { teal: "#22c7ad", cyan: "#38bdf8", navy: "#1f4773", gold: "#f6c64a", purple: "#9b59b6", red: "#e83f52", orange: "#f59e0b", green: "#2dd4bf" };
+    const k = validation.kpis || {};
+    const mensual = validation.mensual || [];
+    const meteoMensual = meteoBundle?.mensual || [];
+    const pRows = (profile.perfil_horario || [])
+      .filter((r) => /nasa|2025/i.test(`${r.caso_sam || ""} ${r.fuente_meteorologica || ""}`))
+      .sort((a, b) => (n(a.hora) || 0) - (n(b.hora) || 0));
 
-    const monthlyCanvas = byId("saReportMonthlyChart");
-    if (monthlyCanvas) state.reportCharts.monthly = new Chart(monthlyCanvas, { type: "bar", data: { labels: monthly.map((r) => r.mes_nombre || MONTHS[(n(r.mes) || 1) - 1]), datasets: [
-      { ...barDs("Generación real CEN", monthly.map((r) => r.generacion_real_cen_gwh), "#91bfd8"), stack: "cen" },
-      { ...barDs("Reducciones CEN", monthly.map((r) => r.reducciones_cen_gwh), colors.gold), stack: "cen" },
-      lineDs("SAM NASA 2025", monthly.map((r) => r.sam_nasa_2025_gwh), colors.teal),
-      lineDs("SAM TMY Explorador Solar", monthly.map((r) => r.sam_tmy_gwh), "#9be7d8"),
-      lineDs("Pronóstico centralizado CEN", monthly.map((r) => r.pronostico_centralizado_cen_gwh), colors.purple),
-      lineDs("CEN disponible", monthly.map((r) => r.cen_disponible_gwh), colors.navy),
-    ] }, options: whiteChartOptions({ scales: { x: { stacked: true, ticks: { color: "#334155" }, grid: { color: "rgba(148,163,184,.18)" } }, y: { stacked: false, title: { display: true, text: "GWh/mes", color: "#334155" }, beginAtZero: true, ticks: { color: "#334155" }, grid: { color: "rgba(148,163,184,.22)" } } } }), plugins: [whiteCanvasPlugin("monthlyWhiteBg")] });
+    const g1Canvas = byId("saReportG1");
+    if (g1Canvas) state.reportCharts.g1 = new Chart(g1Canvas, {
+      type: "bar",
+      data: {
+        labels: meteoMensual.map((r) => r.mes_corto),
+        datasets: [
+          barDs("GHI", meteoMensual.map((r) => r.ghi_kwh_m2_mes), colors.cyan),
+          barDs("DNI", meteoMensual.map((r) => r.dni_kwh_m2_mes), colors.gold),
+          barDs("DHI", meteoMensual.map((r) => r.dhi_kwh_m2_mes), colors.teal),
+        ],
+      },
+      options: whiteChartOptions({ scales: { x: whiteAxisX(), y: whiteAxisY("kWh/m² mes") } }),
+      plugins: [whiteCanvasPlugin("g1WhiteBg"), valueLabelPlugin("g1Labels", (v) => fmt(v, 0))],
+    });
 
-    const ewCanvas = byId("saReportEastWestChart");
-    if (ewCanvas) state.reportCharts.ew = new Chart(ewCanvas, { type: "line", data: { labels: pRows.map((r) => `${String(r.hora).padStart(2, "0")}:00`), datasets: [lineDs("Subarray Este", pRows.map((r) => r.este_mwh), "#ee7b4b"), lineDs("Subarray Oeste", pRows.map((r) => r.oeste_mwh), "#4da3df"), { ...lineDs("Total AC", pRows.map((r) => r.total_mwh), colors.teal), fill: true, backgroundColor: "rgba(34,199,173,0.16)", borderWidth: 3 }] }, options: whiteChartOptions({ scales: { y: { title: { display: true, text: "MWh promedio por hora", color: "#334155" }, beginAtZero: true, ticks: { color: "#334155" }, grid: { color: "rgba(148,163,184,.22)" } } } }), plugins: [whiteCanvasPlugin("ewWhiteBg")] });
+    const g2Canvas = byId("saReportG2");
+    if (g2Canvas) state.reportCharts.g2 = new Chart(g2Canvas, {
+      type: "line",
+      data: {
+        labels: meteoMensual.map((r) => r.mes_corto),
+        datasets: [
+          { ...lineDs("Máx.", meteoMensual.map((r) => r.temperatura_max_c), colors.orange), borderDash: [3, 3] },
+          { ...lineDs("Media", meteoMensual.map((r) => r.temperatura_media_c), colors.navy), borderWidth: 3 },
+          { ...lineDs("Mín.", meteoMensual.map((r) => r.temperatura_min_c), colors.cyan), borderDash: [3, 3] },
+        ],
+      },
+      options: whiteChartOptions({ scales: { x: whiteAxisX(), y: whiteAxisY("°C") } }),
+      plugins: [whiteCanvasPlugin("g2WhiteBg")],
+    });
 
-    const metricsCanvas = byId("saReportMetricsChart");
-    if (metricsCanvas) state.reportCharts.metrics = new Chart(metricsCanvas, { type: "bar", data: { labels: metrics.map((r) => (r.comparacion || "").replace(/ vs /g, "\nvs ")), datasets: [barDs("nRMSE [%]", metrics.map((r) => r.nrmse_pct), colors.teal, "y"), lineDs("Correlación r", metrics.map((r) => r.corr_pearson), colors.orange, "y1")] }, options: whiteChartOptions({ scales: { y: { title: { display: true, text: "nRMSE [%]", color: "#334155" }, beginAtZero: true, ticks: { color: "#334155" }, grid: { color: "rgba(148,163,184,.22)" } }, y1: { position: "right", min: 0.85, max: 1, title: { display: true, text: "Pearson r", color: "#334155" }, ticks: { color: "#334155" }, grid: { drawOnChartArea: false } } } }), plugins: [whiteCanvasPlugin("metricsWhiteBg")] });
+    const g3Canvas = byId("saReportG3");
+    if (g3Canvas) state.reportCharts.g3 = new Chart(g3Canvas, {
+      type: "line",
+      data: {
+        labels: pRows.map((r) => `${String(r.hora).padStart(2, "0")}:00`),
+        datasets: [
+          lineDs("Este", pRows.map((r) => r.este_mwh), colors.orange),
+          lineDs("Oeste", pRows.map((r) => r.oeste_mwh), colors.cyan),
+          { ...lineDs("Total AC", pRows.map((r) => r.total_mwh), colors.teal), borderWidth: 3, fill: true, backgroundColor: "rgba(34,199,173,0.14)" },
+        ],
+      },
+      options: whiteChartOptions({ scales: { x: whiteAxisX(), y: whiteAxisY("MWh promedio / hora") } }),
+      plugins: [whiteCanvasPlugin("g3WhiteBg")],
+    });
 
-    const deltaCanvas = byId("saReportDeltasChart");
-    if (deltaCanvas) {
-      const deltaColors = deltas.map((r) => {
-        const label = `${r.eslabon || ""} ${r.comparacion || ""}`;
-        if (/ΔE1|delta\s*1|sam.*pron[oó]stico/i.test(label)) return colors.teal;
-        if (/ΔE2|delta\s*2|centralizado.*disponible/i.test(label)) return colors.orange;
-        if (/ΔE3|delta\s*3|reducciones|generaci[oó]n real/i.test(label)) return colors.red;
-        return colors.navy;
-      });
-      state.reportCharts.deltas = new Chart(deltaCanvas, {
-        type: "bar",
+    const g4Canvas = byId("saReportG4");
+    if (g4Canvas) state.reportCharts.g4 = new Chart(g4Canvas, {
+      type: "bar",
+      data: { labels: mensual.map((r) => r.mes_nombre || MONTHS[(n(r.mes) || 1) - 1]), datasets: [barDs("SAM NASA 2025", mensual.map((r) => r.sam_nasa_2025_gwh), colors.navy)] },
+      options: whiteChartOptions({ plugins: whitePluginsNoLegend(), scales: { x: whiteAxisX(), y: whiteAxisY("GWh/mes") } }),
+      plugins: [whiteCanvasPlugin("g4WhiteBg"), valueLabelPlugin("g4Labels")],
+    });
+
+    const seasonColors = { Verano: colors.orange, "Otoño": colors.gold, Invierno: colors.navy, Primavera: colors.teal };
+    const g5Canvas = byId("saReportG5");
+    if (g5Canvas) state.reportCharts.g5 = new Chart(g5Canvas, {
+      type: "line",
+      data: {
+        labels: (seasonalProfiles.hours || []).map((h) => `${String(h).padStart(2, "0")}:00`),
+        datasets: Object.entries(seasonalProfiles.series || {}).map(([s, vals]) => lineDs(s, vals, seasonColors[s] || colors.navy)),
+      },
+      options: whiteChartOptions({ scales: { x: whiteAxisX(), y: whiteAxisY("MWh promedio / hora") } }),
+      plugins: [whiteCanvasPlugin("g5WhiteBg")],
+    });
+
+    const g6Canvas = byId("saReportG6");
+    if (g6Canvas) state.reportCharts.g6 = new Chart(g6Canvas, {
+      type: "line",
+      data: {
+        labels: dailySeries.dates || [],
+        datasets: [
+          lineDs("SAM NASA 2025", dailySeries.sam_mwh, colors.navy),
+          lineDs("CEN disponible", dailySeries.cen_disp_mwh, colors.purple),
+        ],
+      },
+      options: whiteChartOptions({ scales: {
+        x: whiteAxisX({ maxTicksLimit: 12, callback: (v, i) => (dailySeries.dates[i] || "").slice(5) }),
+        y: whiteAxisY("MWh/día", { beginAtZero: false }),
+      } }),
+      plugins: [whiteCanvasPlugin("g6WhiteBg")],
+    });
+
+    const g7Canvas = byId("saReportG7");
+    if (g7Canvas) state.reportCharts.g7 = new Chart(g7Canvas, {
+      type: "bar",
+      data: {
+        labels: mensual.map((r) => r.mes_nombre || MONTHS[(n(r.mes) || 1) - 1]),
+        datasets: [
+          barDs("SAM NASA 2025", mensual.map((r) => r.sam_nasa_2025_gwh), colors.navy),
+          barDs("CEN disponible", mensual.map((r) => r.cen_disponible_gwh), colors.purple),
+        ],
+      },
+      options: whiteChartOptions({ scales: { x: whiteAxisX(), y: whiteAxisY("GWh/mes") } }),
+      plugins: [whiteCanvasPlugin("g7WhiteBg")],
+    });
+
+    const g8Canvas = byId("saReportG8");
+    if (g8Canvas) state.reportCharts.g8 = new Chart(g8Canvas, {
+      type: "line",
+      data: {
+        labels: (hourlyProfile.hours || []).map((h) => `${String(h).padStart(2, "0")}:00`),
+        datasets: [
+          lineDs("SAM NASA 2025", hourlyProfile.sam_mwh, colors.navy),
+          lineDs("CEN disponible", hourlyProfile.cen_disp_mwh, colors.purple),
+        ],
+      },
+      options: whiteChartOptions({ scales: { x: whiteAxisX(), y: whiteAxisY("MWh promedio / hora") } }),
+      plugins: [whiteCanvasPlugin("g8WhiteBg")],
+    });
+
+    const g9Canvas = byId("saReportG9");
+    if (g9Canvas) state.reportCharts.g9 = new Chart(g9Canvas, {
+      type: "line",
+      data: { labels: dailySeries.dates || [], datasets: [{ ...lineDs("Residuo diario", dailySeries.residual_mwh, colors.red), fill: true, backgroundColor: "rgba(232,63,82,0.10)" }] },
+      options: whiteChartOptions({ plugins: whitePluginsNoLegend(), scales: {
+        x: whiteAxisX({ maxTicksLimit: 12, callback: (v, i) => (dailySeries.dates[i] || "").slice(5) }),
+        y: whiteAxisY("MWh/día", { beginAtZero: false }),
+      } }),
+      plugins: [whiteCanvasPlugin("g9WhiteBg")],
+    });
+
+    const g9bCanvas = byId("saReportG9b");
+    if (g9bCanvas) {
+      const dates = dailySeries.dates || [];
+      const samGwh = dates.map((d, i) => (n(dailySeries.sam_mwh[i]) || 0) / 1000);
+      const cenGwh = dates.map((d, i) => (n(dailySeries.cen_disp_mwh[i]) || 0) / 1000);
+      const maxGwh = Math.max(4, ...samGwh, ...cenGwh);
+      state.reportCharts.g9b = new Chart(g9bCanvas, {
+        type: "scatter",
         data: {
-          labels: deltas.map((r) => r.eslabon),
-          datasets: [{
-            label: "Energía anual",
-            data: deltas.map((r) => r.energia_anual_gwh),
-            backgroundColor: deltaColors.map((color) => `${color}cc`),
-            borderColor: deltaColors,
-            borderWidth: 1,
-            borderRadius: 6,
-          }],
-        },
-        options: whiteChartOptions({ scales: { y: { title: { display: true, text: "GWh/año", color: "#334155" }, ticks: { color: "#334155" }, grid: { color: "rgba(148,163,184,.22)" } } } }),
-        plugins: [whiteCanvasPlugin("deltasWhiteBg"), valueLabelPlugin("deltaValueLabels", (value) => `${value > 0 ? "+" : ""}${fmt(value, 1)}`)],
-      });
-    }
-
-    const cpCanvas = byId("saReportCurtailmentPriceChart");
-    if (cpCanvas) state.reportCharts.cp = new Chart(cpCanvas, { type: "bar", data: { labels: hRows.map((r) => r.hora_label), datasets: [barDs("Reducciones CEN", hRowsCurtailment.map((r) => r.reducciones_cen_mwh), colors.gold, "y"), lineDs("Precio marginal", hRows.map((r) => r.precio_spot_usd_mwh), colors.purple, "y1")] }, options: whiteChartOptions({ scales: { y: { title: { display: true, text: "Reducciones CEN [MWh/h]", color: "#334155" }, beginAtZero: true, ticks: { color: "#334155" }, grid: { color: "rgba(148,163,184,.22)" } }, y1: { position: "right", title: { display: true, text: "Precio marginal [USD/MWh]", color: "#334155" }, ticks: { color: "#334155" }, grid: { drawOnChartArea: false } } } }), plugins: [whiteCanvasPlugin("cpWhiteBg")] });
-
-    const clippingMonthlyCanvas = byId("saReportClippingMonthlyChart");
-    const clippingMonthly = Array.isArray(clippingBundle?.monthly) ? clippingBundle.monthly : [];
-    if (clippingMonthlyCanvas && clippingMonthly.length) {
-      const labels = MONTHS;
-      const tmyRows = reportRowsForCase(clippingMonthly, /tmy/i);
-      const nasaRows = reportRowsForCase(clippingMonthly, /nasa|2025/i);
-      const valueForMonth = (rows, monthIndex) => {
-        const row = rows.find((item) => (n(item.mes) || MONTHS.indexOf(item.mes_nombre) + 1) === monthIndex);
-        return row ? n(row.energia_clipping_mwh) || 0 : 0;
-      };
-      const clippingDatasets = [];
-      if (tmyRows.length) clippingDatasets.push(barDs("SAM TMY Explorador Solar", labels.map((_, i) => valueForMonth(tmyRows, i + 1)), colors.navy));
-      if (nasaRows.length) clippingDatasets.push(barDs("SAM NASA 2025", labels.map((_, i) => valueForMonth(nasaRows, i + 1)), colors.orange));
-      if (!clippingDatasets.length) {
-        const firstCase = clippingMonthly[0]?.caso_sam || clippingMonthly[0]?.nombre_caso || "";
-        const firstRows = clippingMonthly.filter((row) => `${row.caso_sam || row.nombre_caso || ""}` === firstCase);
-        clippingDatasets.push(barDs(firstRows[0]?.nombre_caso || firstRows[0]?.caso_sam || "Clipping SAM", labels.map((_, i) => valueForMonth(firstRows, i + 1)), colors.orange));
-      }
-      state.reportCharts.clippingMonthly = new Chart(clippingMonthlyCanvas, {
-        type: "bar",
-        data: {
-          labels,
-          datasets: clippingDatasets,
-        },
-        options: whiteChartOptions({ scales: { y: { title: { display: true, text: "MWh/mes", color: "#334155" }, beginAtZero: true, ticks: { color: "#334155" }, grid: { color: "rgba(148,163,184,.22)" } } } }),
-        plugins: [whiteCanvasPlugin("clippingMonthlyWhiteBg")],
-      });
-    }
-
-    const clippingDcAcCanvas = byId("saReportClippingDcAcChart");
-    const dcVsAcAll = Array.isArray(clippingBundle?.dc_vs_ac) ? clippingBundle.dc_vs_ac : [];
-    const dcVsAcNasaRows = reportRowsForCase(dcVsAcAll, /nasa|2025/i);
-    const firstDcCase = dcVsAcAll[0]?.caso_sam || dcVsAcAll[0]?.nombre_caso || "";
-    const dcVsAcRows = dcVsAcNasaRows.length
-      ? dcVsAcNasaRows
-      : dcVsAcAll.filter((row) => `${row.caso_sam || row.nombre_caso || ""}` === firstDcCase);
-    if (clippingDcAcCanvas && dcVsAcRows.length) {
-      state.reportCharts.clippingDcAc = new Chart(clippingDcAcCanvas, {
-        type: "line",
-        data: {
-          labels: dcVsAcRows.map((row) => row.hora_label || `${String(row.hora).padStart(2, "0")}:00`),
           datasets: [
-            lineDs("Potencia DC promedio", dcVsAcRows.map((row) => row.p_dc_prom_mw), colors.teal),
-            lineDs("Potencia AC promedio", dcVsAcRows.map((row) => row.p_ac_prom_mw), colors.navy),
-            { ...lineDs("Límite AC inversores", dcVsAcRows.map((row) => row.p_ac_limit_mw), colors.red), borderDash: [6, 4], pointRadius: 0 },
-            barDs("Clipping promedio", dcVsAcRows.map((row) => row.p_clipping_prom_mw), colors.orange, "y1"),
+            { label: "Días 2025", data: dates.map((d, i) => ({ x: cenGwh[i], y: samGwh[i] })), backgroundColor: colors.navy, pointRadius: 2.5 },
+            { label: "Referencia 1:1", data: [{ x: 0, y: 0 }, { x: maxGwh, y: maxGwh }], type: "line", borderColor: "#c3c2b7", borderDash: [4, 4], borderWidth: 1.4, pointRadius: 0, fill: false },
           ],
         },
-        options: whiteChartOptions({
-          scales: {
-            y: { title: { display: true, text: "Potencia DC / AC [MW]", color: "#334155" }, beginAtZero: true, ticks: { color: "#334155" }, grid: { color: "rgba(148,163,184,.22)" } },
-            y1: { position: "right", title: { display: true, text: "Clipping [MW]", color: "#334155" }, beginAtZero: true, ticks: { color: "#334155" }, grid: { drawOnChartArea: false } },
-          },
-        }),
-        plugins: [whiteCanvasPlugin("clippingDcAcWhiteBg")],
+        options: whiteChartOptions({ scales: {
+          x: whiteAxisX({ title: { display: true, text: "CEN disponible [GWh/día]", color: "#334155" } }),
+          y: whiteAxisY("SAM NASA 2025 [GWh/día]"),
+        } }),
+        plugins: [whiteCanvasPlugin("g9bWhiteBg")],
+      });
+    }
+
+    const g10Canvas = byId("saReportG10");
+    if (g10Canvas) state.reportCharts.g10 = new Chart(g10Canvas, {
+      type: "bar",
+      data: {
+        labels: ["SAM NASA 2025", "SAM TMY", "Pronóstico centralizado CEN", "CEN disponible"],
+        datasets: [
+          { label: "Energía simulada / pronosticada", data: [k.energia_sam_nasa_2025_gwh, k.energia_sam_tmy_gwh, k.energia_pronostico_centralizado_cen_gwh, null], backgroundColor: `${colors.navy}cc`, borderColor: colors.navy, borderWidth: 1, maxBarThickness: 60, borderRadius: 2 },
+          { label: "Generación real CEN", data: [null, null, null, k.energia_generacion_real_cen_gwh], backgroundColor: `${colors.teal}cc`, borderColor: colors.teal, borderWidth: 1, stack: "cen", maxBarThickness: 60, borderRadius: 2 },
+          { label: "Reducciones CEN", data: [null, null, null, k.energia_reducciones_cen_gwh], backgroundColor: `${colors.gold}cc`, borderColor: colors.gold, borderWidth: 1, stack: "cen", maxBarThickness: 60, borderRadius: 2 },
+        ],
+      },
+      options: whiteChartOptions({ scales: { x: whiteAxisX(), y: whiteAxisY("GWh") } }),
+      plugins: [whiteCanvasPlugin("g10WhiteBg"), valueLabelPlugin("g10Labels")],
+    });
+
+    const wf = computeWaterfall(k);
+    const g11Canvas = byId("saReportG11");
+    if (g11Canvas) {
+      const labels = ["SAM NASA 2025\n(8.736 h comunes)", "ΔE1", "ΔE2", "ΔE3", "Generación real CEN"];
+      const floating = [
+        [0, wf.start_sam_common_gwh],
+        [Math.min(wf.start_sam_common_gwh, wf.step1_pronostico_equiv_gwh), Math.max(wf.start_sam_common_gwh, wf.step1_pronostico_equiv_gwh)],
+        [Math.min(wf.step1_pronostico_equiv_gwh, wf.step2_cen_disponible_equiv_gwh), Math.max(wf.step1_pronostico_equiv_gwh, wf.step2_cen_disponible_equiv_gwh)],
+        [Math.min(wf.step2_cen_disponible_equiv_gwh, wf.step3_generacion_real_gwh), Math.max(wf.step2_cen_disponible_equiv_gwh, wf.step3_generacion_real_gwh)],
+        [0, wf.step3_generacion_real_gwh],
+      ];
+      const wfColors = [colors.navy, wf.delta_1 < 0 ? colors.teal : colors.red, wf.delta_2 >= 0 ? colors.red : colors.teal, wf.delta_3 >= 0 ? colors.red : colors.teal, colors.purple];
+      state.reportCharts.g11 = new Chart(g11Canvas, {
+        type: "bar",
+        data: { labels, datasets: [{ label: "Nivel acumulado", data: floating, backgroundColor: wfColors.map((c) => `${c}cc`), borderColor: wfColors, borderWidth: 1, maxBarThickness: 70, borderRadius: 2 }] },
+        options: whiteChartOptions({ plugins: whitePluginsNoLegend(), scales: { x: whiteAxisX(), y: whiteAxisY("GWh") } }),
+        plugins: [whiteCanvasPlugin("g11WhiteBg"), valueLabelPlugin("g11Labels")],
       });
     }
   }
@@ -6137,7 +5246,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     style.id = "sa-report-final-styles";
     style.textContent = `
       .sa-report-doc{background:#fff;color:#1f2937;font-family:Arial,Helvetica,sans-serif;padding:26px 30px;line-height:1.42;max-width:1180px;margin:0 auto;border-radius:6px;box-shadow:0 18px 50px rgba(0,0,0,.25)}
-      .sa-report-main-title p{color:#0fc8aa;font-weight:800;letter-spacing:.03em;margin:0 0 10px}.sa-report-main-title h1{font-size:42px;line-height:1;color:#1f3f67;margin:0 0 10px}.sa-report-main-title h3{font-size:24px;font-weight:500;color:#64748b;margin:0 0 28px}.sa-report-line{height:4px;background:#0fc8aa;margin:18px 0 26px}.sa-report-summary-box{background:#eaf7f3;border:1px solid #cbded9;padding:18px 20px;margin:28px 0;color:#1f2937;font-size:16px}.sa-report-section{break-inside:avoid;margin:28px 0}.sa-report-section h2{background:#1f4773;color:white;border-radius:6px;padding:12px 18px;font-size:23px;margin:0 0 14px;display:flex;gap:20px;align-items:center}.sa-report-section h2 span{color:#0fc8aa;font-weight:900}.sa-report-kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.sa-report-kpi{background:#f3f6fa;border-left:5px solid #1f4773;border-radius:6px;padding:12px 14px}.sa-report-kpi.green{border-left-color:#0fc8aa}.sa-report-kpi.purple{border-left-color:#9b59b6}.sa-report-kpi.red{border-left-color:#e83f52}.sa-report-kpi.orange{border-left-color:#ff7a3d}.sa-report-kpi p{font-weight:800;font-size:12px;color:#1f4773;margin:0 0 4px;text-transform:uppercase}.sa-report-kpi strong{display:block;font-size:32px;line-height:1;color:#111827}.sa-report-kpi small{display:block;color:#64748b;margin-top:8px}.sa-report-table{width:100%;border-collapse:collapse;margin:10px 0 12px;font-size:14px}.sa-report-table th{background:#1f4773;color:#fff;text-align:left;padding:10px;border:1px solid #d3dce8}.sa-report-table td{padding:9px 10px;border:1px solid #d3dce8;vertical-align:top}.sa-report-table tr:nth-child(even) td{background:#f3f6fa}.sa-report-table.sources th:nth-child(1),.sa-report-table.sources td:nth-child(1){width:22%}.sa-report-table.sources th:nth-child(2),.sa-report-table.sources td:nth-child(2){width:22%}.sa-report-table.sources th:nth-child(3),.sa-report-table.sources td:nth-child(3){width:24%}.sa-report-table.sources th:nth-child(4),.sa-report-table.sources td:nth-child(4){width:32%}.sa-report-table.defense th:nth-child(1),.sa-report-table.defense td:nth-child(1){width:34%}.sa-report-table.defense th:nth-child(2),.sa-report-table.defense td:nth-child(2){width:66%}.sa-report-table.metrics{font-size:12.2px}.sa-report-table.annual{font-size:13.2px}.sa-report-table td,.sa-report-table th{white-space:normal;overflow:visible;text-overflow:clip;word-break:normal;overflow-wrap:anywhere}.sa-report-table.plain th{display:none}.sa-report-table.plain td:first-child{background:#f3f6fa;color:#1f4773;width:250px}.sa-report-note{color:#5b6777;margin:12px 0;font-size:15px}.sa-report-figure-title{text-align:center;color:#64748b;font-style:italic;margin:15px 0 8px}.sa-report-chart{height:300px;background:#fff;border:1px solid #d9e3ef;border-radius:8px;padding:12px;margin:8px 0 12px}.sa-report-list{margin:8px 0 0 24px}.sa-report-list li{margin:8px 0}.sa-report-decision{background:#1f4773;color:#fff;border:2px solid #0fc8aa;padding:18px 22px;margin-top:18px}.sa-report-decision b{color:#0fc8aa}.sa-report-footer{text-align:center;margin-top:28px;padding-top:16px;border-top:1px solid #cbd5e1;color:#4b5f78;font-weight:700}.report-view-shell .sa-report-doc canvas{max-width:100%}@media print{.pdf-hide,.side-nav,.top-controls{display:none!important}.sa-report-doc{box-shadow:none;border-radius:0}.sa-report-section{page-break-inside:avoid}.sa-report-chart{break-inside:avoid}}
+      .sa-report-main-title p{color:#0fc8aa;font-weight:800;letter-spacing:.03em;margin:0 0 10px}.sa-report-main-title h1{font-size:42px;line-height:1;color:#1f3f67;margin:0 0 10px}.sa-report-main-title h3{font-size:24px;font-weight:500;color:#64748b;margin:0 0 28px}.sa-report-line{height:4px;background:#0fc8aa;margin:18px 0 26px}.sa-report-summary-box{background:#eaf7f3;border:1px solid #cbded9;padding:18px 20px;margin:28px 0;color:#1f2937;font-size:16px}.sa-report-section{break-inside:avoid;margin:28px 0}.sa-report-section h2{background:#1f4773;color:white;border-radius:6px;padding:12px 18px;font-size:23px;margin:0 0 14px;display:flex;gap:20px;align-items:center}.sa-report-section h2 span{color:#0fc8aa;font-weight:900}.sa-report-kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.sa-report-kpi{background:#f3f6fa;border-left:5px solid #1f4773;border-radius:6px;padding:12px 14px}.sa-report-kpi.green{border-left-color:#0fc8aa}.sa-report-kpi.purple{border-left-color:#9b59b6}.sa-report-kpi.red{border-left-color:#e83f52}.sa-report-kpi.orange{border-left-color:#ff7a3d}.sa-report-kpi p{font-weight:800;font-size:12px;color:#1f4773;margin:0 0 4px;text-transform:uppercase}.sa-report-kpi strong{display:block;font-size:32px;line-height:1;color:#111827}.sa-report-kpi small{display:block;color:#64748b;margin-top:8px}.sa-report-table{width:100%;border-collapse:collapse;margin:10px 0 12px;font-size:14px}.sa-report-table th{background:#1f4773;color:#fff;text-align:left;padding:10px;border:1px solid #d3dce8}.sa-report-table td{padding:9px 10px;border:1px solid #d3dce8;vertical-align:top}.sa-report-table tr:nth-child(even) td{background:#f3f6fa}.sa-report-table.sources th:nth-child(1),.sa-report-table.sources td:nth-child(1){width:22%}.sa-report-table.sources th:nth-child(2),.sa-report-table.sources td:nth-child(2){width:22%}.sa-report-table.sources th:nth-child(3),.sa-report-table.sources td:nth-child(3){width:24%}.sa-report-table.sources th:nth-child(4),.sa-report-table.sources td:nth-child(4){width:32%}.sa-report-table.defense th:nth-child(1),.sa-report-table.defense td:nth-child(1){width:34%}.sa-report-table.defense th:nth-child(2),.sa-report-table.defense td:nth-child(2){width:66%}.sa-report-table.metrics{font-size:12.2px}.sa-report-table.annual{font-size:13.2px}.sa-report-table td,.sa-report-table th{white-space:normal;overflow:visible;text-overflow:clip;word-break:normal;overflow-wrap:anywhere}.sa-report-table.plain th{display:none}.sa-report-table.plain td:first-child{background:#f3f6fa;color:#1f4773;width:250px}.sa-report-note{color:#5b6777;margin:12px 0;font-size:15px}.sa-report-figure-title{text-align:center;color:#64748b;font-style:italic;margin:15px 0 8px}.sa-report-chart{height:300px;background:#fff;border:1px solid #d9e3ef;border-radius:8px;padding:12px;margin:8px 0 12px}.sa-report-list{margin:8px 0 0 24px}.sa-report-list li{margin:8px 0}.sa-report-decision{background:#1f4773;color:#fff;border:2px solid #0fc8aa;padding:18px 22px;margin-top:18px}.sa-report-decision b{color:#0fc8aa}.sa-report-footer{text-align:center;margin-top:28px;padding-top:16px;border-top:1px solid #cbd5e1;color:#4b5f78;font-weight:700}.sa-report-subheading{color:#1f4773;font-size:15px;font-weight:800;margin:18px 0 8px;padding-top:10px;border-top:1px solid #e2e8f0}.sa-report-subheading:first-child{margin-top:0;padding-top:0;border-top:none}.report-view-shell .sa-report-doc canvas{max-width:100%}@media print{.pdf-hide,.side-nav,.top-controls{display:none!important}.sa-report-doc{box-shadow:none;border-radius:0}.sa-report-section{page-break-inside:avoid}.sa-report-chart{break-inside:avoid}}
     `;
     style.textContent += `
       .pdf-export-mode,.pdf-report-page{background:#fff!important;color:#111827!important}
@@ -6167,6 +5276,10 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         page-break-inside:auto;
       }
       .sa-report-section.sa-page-break{
+        break-before:page;
+        page-break-before:always;
+      }
+      .sa-subbreak{
         break-before:page;
         page-break-before:always;
       }
@@ -6314,10 +5427,62 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       .sa-pdf-export-doc .sa-report-table.meteo-metrics{font-size:7.3px}
       .sa-pdf-export-doc .sa-report-table.clipping-compare th,.sa-pdf-export-doc .sa-report-table.clipping-compare td{font-size:8.5px}
     `;
+    style.textContent += `
+      .sa-report-kpi-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:10px 0 4px;break-inside:avoid;page-break-inside:avoid}
+      .sa-report-kpi-row.n5{grid-template-columns:repeat(5,minmax(0,1fr))}
+      .sa-report-kpi-row.n4{grid-template-columns:repeat(4,minmax(0,1fr))}
+      .sa-report-kpi-row.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+      .sa-report-kpi-row .sa-report-kpi{padding:9px 10px}
+      .sa-report-kpi-row .sa-report-kpi p{font-size:9px}
+      .sa-report-kpi-row .sa-report-kpi strong{font-size:19px}
+      .sa-report-kpi-row .sa-report-kpi small{font-size:9px;margin-top:3px}
+      .sa-report-two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;break-inside:avoid;page-break-inside:avoid}
+      .sa-stat-row{display:flex;gap:10px;margin:8px 0;break-inside:avoid;page-break-inside:avoid}
+      .sa-stat-tile{flex:1;background:#f3f6fa;border-radius:5px;padding:10px 12px;text-align:center}
+      .sa-stat-tile p{margin:0 0 4px;font-size:10px;color:#1f4773;font-weight:800;text-transform:uppercase}
+      .sa-stat-tile strong{font-size:18px}
+      .sa-arch-diagram{margin:6px 0 10px;break-inside:avoid;page-break-inside:avoid}
+      .sa-report-chart.tall{height:300px}
+      .sa-pdf-export-doc .sa-report-kpi-row{gap:6px}
+      .sa-pdf-export-doc .sa-report-kpi-row .sa-report-kpi strong{font-size:15px}
+      .sa-pdf-export-doc .sa-report-kpi-row .sa-report-kpi p{font-size:7.6px}
+      .sa-pdf-export-doc .sa-stat-tile strong{font-size:14px}
+      .sa-pdf-export-doc .sa-report-two-col{gap:10px}
+      .sa-pdf-export-doc .sa-report-chart.tall{height:220px}
+      @media print{.sa-report-kpi-row,.sa-stat-row,.sa-arch-diagram{break-inside:avoid;page-break-inside:avoid}}
+    `;
     document.head.appendChild(style);
   }
 
-  function cloneReportForPdf(sourceDoc) {
+  async function svgToPngDataUrl(svgEl, targetWidthPx) {
+    const svgMarkup = new XMLSerializer().serializeToString(svgEl);
+    const svgBlob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = url;
+      });
+      const viewBoxAttr = (svgEl.getAttribute("viewBox") || "0 0 1000 300").split(/\s+/).map(Number);
+      const aspect = viewBoxAttr[3] / viewBoxAttr[2];
+      const width = Math.round(targetWidthPx || viewBoxAttr[2]);
+      const height = Math.round(width * aspect);
+      const scale = 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0, width, height);
+      return canvas.toDataURL("image/png", 1);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function cloneReportForPdf(sourceDoc) {
     const clone = sourceDoc.cloneNode(true);
     clone.id = "saReportDocPdfClone";
     clone.classList.add("sa-pdf-export-doc", "pdf-export-mode");
@@ -6344,6 +5509,29 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       }
     });
 
+    // html2canvas no interpreta de forma confiable SVG en linea (patrones, marcadores, texto);
+    // se rasteriza el diagrama unifilar a PNG antes de la exportacion, igual que los graficos Chart.js.
+    const sourceSvgs = Array.from(sourceDoc.querySelectorAll(".sa-arch-diagram svg"));
+    const cloneSvgs = Array.from(clone.querySelectorAll(".sa-arch-diagram svg"));
+    for (let index = 0; index < sourceSvgs.length; index += 1) {
+      const svg = sourceSvgs[index];
+      const cloneSvg = cloneSvgs[index];
+      if (!cloneSvg) continue;
+      try {
+        const rect = svg.getBoundingClientRect();
+        const dataUrl = await svgToPngDataUrl(svg, rect.width || 700);
+        const img = document.createElement("img");
+        img.src = dataUrl;
+        img.alt = "Diagrama unifilar CEME1";
+        img.style.display = "block";
+        img.style.width = "100%";
+        img.style.height = "auto";
+        cloneSvg.replaceWith(img);
+      } catch (error) {
+        console.warn("No se pudo convertir el diagrama unifilar a imagen para PDF:", error);
+      }
+    }
+
     const host = document.createElement("div");
     host.className = "sa-pdf-export-host";
     host.style.position = "fixed";
@@ -6362,20 +5550,22 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
 
   async function renderReportesViewPatched() {
     installReportStyles();
-    const content = byId("reportBloque1Content") || byId("view-reportes");
+    const content = byId("reportContent") || byId("view-reportes");
     if (!content) return;
     setText("reportPdfStatus", "Cargando JSON...");
-    const [validation, profile, scadaRows, compareMetricsBundle, clippingBundle, architectureBundle] = await Promise.all([
+    const [validation, profile, scadaRows, architectureBundle, meteoBundle] = await Promise.all([
       getValidationBundle(),
       getProfileBundle(),
       getScadaRows(),
-      getReportCompareMetricsBundle(),
-      getReportClippingBundle(),
       getArchitectureBundle(),
+      getMeteoNasaBundle(),
     ]);
-    content.innerHTML = buildReportHtml(validation, compareMetricsBundle, clippingBundle, architectureBundle);
+    const dailySeries = groupByDaySamCen(scadaRows, /nasa|2025/i);
+    const hourlyProfile = groupBySamCenHour(scadaRows, /nasa|2025/i);
+    const seasonalProfiles = groupBySeasonHour(scadaRows, /nasa|2025/i);
+    content.innerHTML = buildReportHtml(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles);
     setText("reportPdfStatus", "Reporte cargado desde JSON");
-    setTimeout(() => renderReportCharts(validation, profile, scadaRows, compareMetricsBundle, clippingBundle), 100);
+    setTimeout(() => renderReportCharts(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles), 100);
     const button = byId("exportReportPdfBtn");
     if (button && button.dataset.saReportExportBound !== "true") {
       button.dataset.saReportExportBound = "true";
@@ -6389,12 +5579,12 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         let exportHost = null;
         try {
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          const prepared = cloneReportForPdf(sourceDoc);
+          const prepared = await cloneReportForPdf(sourceDoc);
           exportHost = prepared.host;
           const target = prepared.clone;
           const pdfWorker = html2pdf().set({
             margin: [7, 8, 8, 8],
-            filename: "reporte_bloque1_ceme1_fv_cen.pdf",
+            filename: "reporte_tecnico_ceme1_fv_cen.pdf",
             image: { type: "jpeg", quality: 0.98 },
             html2canvas: {
               scale: 2,
@@ -6410,8 +5600,8 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
             jsPDF: { unit: "mm", format: "letter", orientation: "portrait" },
             pagebreak: {
               mode: ["css", "legacy"],
-              before: [".sa-page-break"],
-              avoid: [".sa-report-section h2", ".sa-section-body", ".sa-report-chart", ".sa-report-table", ".sa-report-table tr", ".sa-report-kpi", ".sa-report-decision"],
+              before: [".sa-page-break", ".sa-subbreak"],
+              avoid: [".sa-report-section h2", ".sa-section-body", ".sa-report-chart", ".sa-report-table", ".sa-report-table tr", ".sa-report-kpi", ".sa-report-decision", ".sa-report-two-col", ".sa-report-kpi-row", ".sa-stat-row", ".sa-arch-diagram"],
             },
           }).from(target).toPdf();
           await pdfWorker.get("pdf").then((pdf) => {
@@ -6422,7 +5612,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
               pdf.setPage(page);
               pdf.setTextColor(15, 39, 66);
               pdf.setFontSize(7);
-              pdf.text("Storage Analytics | Reporte Bloque 1", 8, 5);
+              pdf.text("Storage Analytics | Reporte Técnico CEME1", 8, 5);
               pdf.text(`Pagina ${page} de ${pageCount}`, pageWidth - 8, pageHeight - 5, { align: "right" });
               pdf.text("Storage Analytics - CEME1 FV + BESS", 8, pageHeight - 5);
             }
@@ -6430,7 +5620,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
           await pdfWorker.save();
           setText("reportPdfStatus", "PDF generado correctamente");
         } catch (error) {
-          console.error("No se pudo generar el PDF del Bloque 1", error);
+          console.error("No se pudo generar el PDF del reporte", error);
           setText("reportPdfStatus", "No se pudo generar el PDF");
         } finally {
           if (exportHost) exportHost.remove();
