@@ -899,7 +899,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     })) : [];
 
     return {
-      metadata: { fuente: label, tipo_dato: label, ubicacion: "María Elena / CEME1" },
+      metadata: { fuente: label, tipo_dato: label, ubicacion: "María Elena / Planta FV" },
       kpis: {
         ghi_promedio_diario_kwh_m2_dia: (Number(kpis.ghi_anual_kwh_m2) || 0) / 365,
         dni_promedio_diario_kwh_m2_dia: (Number(kpis.dni_anual_kwh_m2) || 0) / 365,
@@ -942,7 +942,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     const diffGhi = tmy.ghi_anual_kwh_m2 ? ((Number(nasa.ghi_anual_kwh_m2) - Number(tmy.ghi_anual_kwh_m2)) / Number(tmy.ghi_anual_kwh_m2)) * 100 : null;
 
     return {
-      metadata: { fuente: "TMY vs NASA POWER 2025", tipo_dato: "Comparativa", ubicacion: "María Elena / CEME1" },
+      metadata: { fuente: "TMY vs NASA POWER 2025", tipo_dato: "Comparativa", ubicacion: "María Elena / Planta FV" },
       kpis: {
         ghi_promedio_diario_kwh_m2_dia: tmy.ghi_anual_kwh_m2 ? Number(tmy.ghi_anual_kwh_m2) / 365 : null,
         dni_promedio_diario_kwh_m2_dia: nasa.ghi_anual_kwh_m2 ? Number(nasa.ghi_anual_kwh_m2) / 365 : null,
@@ -1238,7 +1238,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     });
 
     return {
-      metadata: bundle?.metadata || { fuente: "TMY vs NASA POWER 2025", tipo_dato: "Comparativa", ubicacion: "MarÃ­a Elena / CEME1" },
+      metadata: bundle?.metadata || { fuente: "TMY vs NASA POWER 2025", tipo_dato: "Comparativa", ubicacion: "María Elena / Planta FV" },
       kpis: {
         ghi_promedio_diario_kwh_m2_dia: ghiDaily.tmy_explorador,
         dni_promedio_diario_kwh_m2_dia: ghiDaily.nasa_power_2025,
@@ -3244,7 +3244,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     const indicadores = normalizeValidationMetricRows(raw?.metricas || raw?.indicadores);
 
     return {
-      metadata: { ...(raw?.metadata || {}), planta: raw?.metadata?.planta || "CEME1", anio: raw?.metadata?.anio || "2025", comparacion: raw?.metadata?.descripcion || "SAM NASA 2025 vs CEN" },
+      metadata: { ...(raw?.metadata || {}), planta: raw?.metadata?.planta || "Planta FV", anio: raw?.metadata?.anio || "2025", comparacion: raw?.metadata?.descripcion || "SAM NASA 2025 vs CEN" },
       cen_kpis: {
         energia_inyectada_cen_gwh: real,
         energia_curtailment_cen_gwh: reducciones,
@@ -3421,7 +3421,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
   }
 
   function renderSamCenHeader(bundle) {
-    setText("samCenHeaderPlant", bundle.metadata?.planta || "CEME1");
+    setText("samCenHeaderPlant", bundle.metadata?.planta || "Planta FV");
     setText("samCenHeaderYear", bundle.metadata?.anio || "2025");
     setText("samCenHeaderBus", "Miraje 220 kV");
   }
@@ -3752,21 +3752,21 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     if (samCenState.rendered && Object.keys(samCenState.charts).length) return;
 
     setSamCenStatus("CARGANDO");
-    setText("samCenMeta", "Cargando data/validacion_fv_ceme1_dashboard_bundle.json...");
+    setText("samCenMeta", "Cargando datos de validación FV...");
     const bundle = await loadSamCenBundle();
 
     if (!bundle) {
       destroySamCenCharts();
       samCenState.rendered = false;
       setSamCenStatus("ERROR DATOS", true);
-      setText("samCenMeta", "No se pudo cargar validacion_fv_ceme1_dashboard_bundle.json ni los bundles de respaldo");
+      setText("samCenMeta", "No se pudieron cargar los datos de validación FV ni los respaldos");
       return;
     }
 
     setSamCenStatus("DATA OK");
     setText(
       "samCenMeta",
-      `${bundle.metadata?.planta || "CEME1"} · ${displayComparison(bundle.metadata?.comparacion)} · ${bundle.metadata?.anio || "2025"} · ${bundle.__sourceUrl || "dashboard/data"}`
+      `${bundle.metadata?.planta || "Planta FV"} · ${displayComparison(bundle.metadata?.comparacion)} · ${bundle.metadata?.anio || "2025"} · Datos JSON locales`
     );
 
     const perfilHorario = Array.isArray(bundle.perfil_horario) && bundle.perfil_horario.length
@@ -4159,7 +4159,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     const totals = architecture.totales || {};
     const geometry = architecture.geometria || {};
 
-    setText("ceme1ArchitectureNote", architecture.metadata?.nota || "Configuracion estructural equivalente CEME1 cargada desde JSON.");
+    setText("ceme1ArchitectureNote", architecture.metadata?.nota || "Configuracion estructural equivalente Planta FV cargada desde JSON.");
     setText("ceme1TiltEast", `${fmt(geometry.inclinacion_grados, 0)}°`);
     setText("ceme1TiltWest", `${fmt(geometry.inclinacion_grados, 0)}°`);
 
@@ -4241,8 +4241,8 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       renderCeme1Architecture(architecture);
       renderCeme1EastWestProfile(profile);
     } catch (error) {
-      console.warn("No se pudo cargar ceme1_architecture.json:", error);
-      setText("ceme1ArchitectureNote", "Dato no disponible: no se pudo cargar dashboard/data/ceme1_architecture.json.");
+      console.warn("No se pudo cargar la configuracion estructural:", error);
+      setText("ceme1ArchitectureNote", "Dato no disponible: no se pudo cargar la configuracion estructural.");
     }
   }
 
@@ -4816,10 +4816,10 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     parts.push(label(txX,292,"Transformadores principales × 2",14,700));
     parts.push(label(txX,311,"220/33/33 kV · 150/200/250 MVA",10.5,400,muted));
 
-    // S/E CEME1 y conexión a Mirage.
+    // S/E Planta FV y conexión a Mirage.
     parts.push(line(1055,y,1100,y,ink,2.2,'marker-end="url(#saUfArrow)"'));
     parts.push(line(1120,145,1120,231,navy,7));
-    parts.push(label(1120,126,"S/E CEME1",13,700));
+    parts.push(label(1120,126,"S/E Planta FV",13,700));
     parts.push(label(1120,254,"220 kV",11,400,muted));
     parts.push(line(1125,y,1280,y,teal,2.8,'stroke-dasharray="10,6" marker-end="url(#saUfArrow)"'));
     parts.push(label(1205,160,"Línea propia 1 × 220 kV",11,700,"#0a8a71"));
@@ -4882,7 +4882,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     const sesgoAnual = n(k.energia_cen_disponible_gwh) ? (n(k.residuo_sam_nasa_vs_cen_disponible_gwh) / n(k.energia_cen_disponible_gwh)) * 100 : null;
 
     const block1 = `
-      <p class="sa-report-figure-title">Figura 1 — Diagrama unifilar CEME1 (simplificado)</p>
+      <p class="sa-report-figure-title">Figura 1 — Diagrama unifilar Planta FV (simplificado)</p>
       <div class="sa-arch-diagram">${buildUnifilarSvg(archKpis)}</div>
       ${kpiRow([
         ["Potencia DC", fmt(archKpis.potencia_dc_mwp, 2), "MWdc", "green"],
@@ -5021,16 +5021,16 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     return `
       <div class="sa-report-doc" id="saReportDoc">
         <header class="sa-report-main-title">
-          <h1>Reporte Técnico CEME1</h1>
-          <h3>Fuente reproducible de tablas, gráficos y KPI del Capítulo 3 — Modelación fotovoltaica de CEME1</h3>
+          <h1>Reporte Técnico Planta FV</h1>
+          <h3>Fuente reproducible de tablas, gráficos y KPI del Capítulo 3 — Modelación fotovoltaica de Planta FV</h3>
           <div class="sa-report-line"></div>
         </header>
-        ${reportSection("1.", "Arquitectura y configuración CEME1", block1)}
+        ${reportSection("1.", "Arquitectura y configuración Planta FV", block1)}
         ${reportSection("2.", "Meteorología y simulación SAM", block2)}
         ${reportSection("3.", "Resultado de generación SAM", block3)}
         ${reportSection("4.", "Contraste SAM – CEN", block4)}
         ${reportSection("5.", "Balance energético y KPI estadísticos", block5)}
-        <footer class="sa-report-footer">Storage Analytics · CEME1 FV + DUNE BESS</footer>
+        <footer class="sa-report-footer">Storage Analytics · Planta FV + BESS</footer>
       </div>`;
   }
 
@@ -5517,7 +5517,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         const dataUrl = await svgToPngDataUrl(svg, Math.max(1100, rect.width || 760));
         const img = document.createElement("img");
         img.src = dataUrl;
-        img.alt = "Diagrama unifilar CEME1";
+        img.alt = "Diagrama unifilar Planta FV";
         Object.assign(img.style, { display: "block", width: "100%", height: "auto", objectFit: "contain" });
         cloneSvg.replaceWith(img);
       } catch (error) {
@@ -5657,7 +5657,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       }
       unitHost.remove();
       // jsPDF crea una pagina inicial vacia; si no se uso, ya fue ocupada por la primera imagen.
-      pdf.save(filename || "reporte_resultados_ceme1.pdf");
+      pdf.save(filename || "reporte_resultados_planta_fv.pdf");
     } finally {
       if (cloned.host?.parentNode) cloned.host.parentNode.removeChild(cloned.host);
     }
@@ -5694,7 +5694,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
           if (!sourceDoc) throw new Error("No se encontro el contenido del reporte.");
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           setText("reportPdfStatus", "Generando PDF...");
-          await exportReportPdfReliable(sourceDoc, "reporte_resultados_ceme1.pdf");
+          await exportReportPdfReliable(sourceDoc, "reporte_resultados_planta_fv.pdf");
           setText("reportPdfStatus", "PDF descargado");
         } catch (error) {
           console.error("No se pudo generar el PDF del reporte", error);

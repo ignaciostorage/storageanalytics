@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "planta": "CEME1",
-    "descripcion": "Arquitectura equivalente CEME1 para modelacion FV en seis submodelos SAM",
+    "planta": "Planta FV",
+    "descripcion": "Arquitectura equivalente Planta FV para modelacion FV en seis submodelos SAM",
     "tipo": "configuracion_estructural",
-    "nota": "Los seis submodelos constituyen una representacion equivalente de una unica planta CEME1 y sus resultados horarios se consolidan para obtener la generacion total modelada.",
+    "nota": "Los seis submodelos constituyen una representacion equivalente de una unica Planta FV y sus resultados horarios se consolidan para obtener la generacion total modelada.",
     "fuente": "Configuracion estructural validada Bloque 1"
   },
   "geometria": {
@@ -59,7 +59,7 @@
       "capacidades_mva_por_refrigeracion": [150, 200, 250]
     },
     "subestacion": {
-      "nombre": "S/E CEME1",
+      "nombre": "S/E Planta FV",
       "nivel_kv": 220
     },
     "conexion": {

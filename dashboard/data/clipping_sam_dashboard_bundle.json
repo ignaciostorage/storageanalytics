@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "planta": "CEME1",
+    "planta": "Planta FV",
     "anio": 2025,
-    "descripcion": "Pérdidas internas por clipping del inversor en la simulación SAM de CEME1.",
+    "descripcion": "Pérdidas internas por clipping del inversor en la simulación SAM de Planta FV.",
     "fuente": "SAM Detailed PV",
     "archivo_origen": "Archivos horarios SAM por submodelo",
     "unidad_base": "MWh por hora; MW para potencias",

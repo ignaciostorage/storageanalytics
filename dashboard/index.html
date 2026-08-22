@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Storage Analytics | CEME1 FV + DUNE BESS</title>
+  <title>Storage Analytics | Planta FV + BESS</title>
   <link rel="stylesheet" href="dashboard.css?v=20260814-bloque1" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -335,7 +335,7 @@
     <header class="topbar">
       <div class="title-block">
         <h1>STORAGE ANALYTICS</h1>
-        <p>CEME1 FV + DUNE BESS</p>
+        <p>Planta FV + BESS</p>
       </div>
 
       <div class="top-controls">
@@ -688,7 +688,7 @@
           <ul class="kv-list compact">
             <li><span>Fuente</span><strong id="solarMetaFuente">Explorador Solar</strong></li>
             <li><span>Tipo de dato</span><strong id="solarMetaTipo">TMY</strong></li>
-            <li><span>Ubicación</span><strong id="solarMetaUbicacion">María Elena / CEME1</strong></li>
+            <li><span>Ubicación</span><strong id="solarMetaUbicacion">María Elena / Planta FV</strong></li>
             <li><span>Latitud</span><strong id="solarMetaLat">--</strong></li>
             <li><span>Longitud</span><strong id="solarMetaLon">--</strong></li>
             <li><span>Elevación</span><strong id="solarMetaElev">--</strong></li>
@@ -705,9 +705,9 @@
         <div class="plant-head-grid">
           <article class="plant-title-card card">
             <p class="section-kicker">PLANTA FV — MODELACIÓN SAM</p>
-            <h2>Planta FV CEME1 — arquitectura modelada en SAM</h2>
+            <h2>Planta FV — arquitectura modelada en SAM</h2>
             <p>
-              Arquitectura equivalente de la planta FV CEME1 modelada a partir de 6 submodelos representativos,
+              Arquitectura equivalente de la Planta FV modelada a partir de 6 submodelos representativos,
               configuración estructural en V invertida Este/Oeste, módulos JAM72-S30-540/545-MR e inversores
               Sungrow SG3125-HV-30.
             </p>
@@ -716,14 +716,14 @@
           <article class="plant-note-card card">
             <h3>NOTA METODOLÓGICA</h3>
             <p>
-              La planta CEME1 se representa en SAM mediante seis submodelos equivalentes para capturar la configuración
+              La Planta FV se representa en SAM mediante seis submodelos equivalentes para capturar la configuración
               Este/Oeste, las familias de módulos y la distribución de inversores de la planta.
             </p>
           </article>
         </div>
 
         <div class="plant-tabs card">
-          <button class="plant-tab-btn active" type="button" data-plant-panel="arquitectura">Arquitectura CEME1</button>
+          <button class="plant-tab-btn active" type="button" data-plant-panel="arquitectura">Arquitectura Planta FV</button>
         </div>
 
         <div id="plant-panel-arquitectura" class="plant-panel active">
@@ -841,7 +841,7 @@
               </div>
 
               <div class="pv-unifilar-scroll">
-                <div class="pv-unifilar-pro" aria-label="Diagrama unifilar equivalente CEME1">
+                <div class="pv-unifilar-pro" aria-label="Diagrama unifilar equivalente Planta FV">
                   <div class="pv-stage-labels" aria-hidden="true">
                     <span>Submodelo</span>
                     <span>Módulo FV</span>
@@ -924,7 +924,7 @@
             <article class="card plant-tech-card">
               <h3>FICHA TÉCNICA DE MODELACIÓN</h3>
               <ul class="plant-tech-list">
-                <li><span>Planta</span><strong>CEME1</strong></li>
+                <li><span>Planta</span><strong>Planta FV</strong></li>
                 <li><span>Ubicación</span><strong>María Elena</strong></li>
                 <li><span>Herramienta</span><strong>SAM</strong></li>
                 <li><span>Configuración estructural</span><strong>V invertida</strong></li>
@@ -965,17 +965,17 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td>SC01</td><td>Familia A</td><td>Este</td><td>Módulo 540 Wp</td><td>540</td><td>2.976</td><td>30</td><td>89.280</td><td>89.280 × 540 Wp</td><td>48,2112</td><td>12</td><td>37,5</td><td>CEME1_SC01_540W_ESTE</td></tr>
-                    <tr><td>SC02</td><td>Familia A</td><td>Oeste</td><td>Módulo 540 Wp</td><td>540</td><td>2.976</td><td>30</td><td>89.280</td><td>89.280 × 540 Wp</td><td>48,2112</td><td>12</td><td>37,5</td><td>CEME1_SC02_540W_OESTE</td></tr>
-                    <tr><td>SC03</td><td>Familia B</td><td>Este</td><td>Módulo 545 Wp</td><td>545</td><td>5.040</td><td>30</td><td>151.200</td><td>151.200 × 545 Wp</td><td>82,4040</td><td>21</td><td>65,6</td><td>CEME1_SC03_545W_ESTE</td></tr>
-                    <tr><td>SC04</td><td>Familia B</td><td>Oeste</td><td>Módulo 545 Wp</td><td>545</td><td>5.040</td><td>30</td><td>151.200</td><td>151.200 × 545 Wp</td><td>82,4040</td><td>21</td><td>65,6</td><td>CEME1_SC04_545W_OESTE</td></tr>
-                    <tr><td>SC05</td><td>Familia C</td><td>Este</td><td>Módulo 545 Wp</td><td>545</td><td>6.696</td><td>30</td><td>200.880</td><td>200.880 × 545 Wp</td><td>109,4796</td><td>27</td><td>84,4</td><td>CEME1_SC05_545W_ESTE</td></tr>
-                    <tr><td>SC06</td><td>Familia C</td><td>Oeste</td><td>Módulo 545 Wp</td><td>545</td><td>6.696</td><td>30</td><td>200.880</td><td>200.880 × 545 Wp</td><td>109,4796</td><td>27</td><td>84,4</td><td>CEME1_SC06_545W_OESTE</td></tr>
+                    <tr><td>SC01</td><td>Familia A</td><td>Este</td><td>Módulo 540 Wp</td><td>540</td><td>2.976</td><td>30</td><td>89.280</td><td>89.280 × 540 Wp</td><td>48,2112</td><td>12</td><td>37,5</td><td>SC01_540W_ESTE</td></tr>
+                    <tr><td>SC02</td><td>Familia A</td><td>Oeste</td><td>Módulo 540 Wp</td><td>540</td><td>2.976</td><td>30</td><td>89.280</td><td>89.280 × 540 Wp</td><td>48,2112</td><td>12</td><td>37,5</td><td>SC02_540W_OESTE</td></tr>
+                    <tr><td>SC03</td><td>Familia B</td><td>Este</td><td>Módulo 545 Wp</td><td>545</td><td>5.040</td><td>30</td><td>151.200</td><td>151.200 × 545 Wp</td><td>82,4040</td><td>21</td><td>65,6</td><td>SC03_545W_ESTE</td></tr>
+                    <tr><td>SC04</td><td>Familia B</td><td>Oeste</td><td>Módulo 545 Wp</td><td>545</td><td>5.040</td><td>30</td><td>151.200</td><td>151.200 × 545 Wp</td><td>82,4040</td><td>21</td><td>65,6</td><td>SC04_545W_OESTE</td></tr>
+                    <tr><td>SC05</td><td>Familia C</td><td>Este</td><td>Módulo 545 Wp</td><td>545</td><td>6.696</td><td>30</td><td>200.880</td><td>200.880 × 545 Wp</td><td>109,4796</td><td>27</td><td>84,4</td><td>SC05_545W_ESTE</td></tr>
+                    <tr><td>SC06</td><td>Familia C</td><td>Oeste</td><td>Módulo 545 Wp</td><td>545</td><td>6.696</td><td>30</td><td>200.880</td><td>200.880 × 545 Wp</td><td>109,4796</td><td>27</td><td>84,4</td><td>SC06_545W_OESTE</td></tr>
                     <tr class="total-row"><td>Total</td><td>--</td><td>Este/Oeste</td><td>--</td><td>--</td><td>29.424</td><td>30</td><td>882.720</td><td>Suma SC01-SC06</td><td>480,1896</td><td>120</td><td>412,4</td><td>Arquitectura equivalente</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p class="plant-table-note">La potencia DC total se obtiene multiplicando la cantidad de módulos por la potencia nominal de cada familia. La suma de las tres familias entrega 480,1896 MWp, coherente con la arquitectura equivalente de CEME1.</p>
+              <p class="plant-table-note">La potencia DC total se obtiene multiplicando la cantidad de módulos por la potencia nominal de cada familia. La suma de las tres familias entrega 480,1896 MWp, coherente con la arquitectura equivalente de la Planta FV.</p>
             </article>
 
             <article class="card plant-balance-card">
@@ -1189,10 +1189,10 @@
             <div class="sam-cen-title">
               <p class="section-kicker">SAM VS CEN 2025</p>
               <h3>Verificación de consistencia técnico-operacional FV contra operación CEN</h3>
-              <small id="samCenMeta">Cargando data/validacion_fv_ceme1_dashboard_bundle.json...</small>
+              <small id="samCenMeta">Cargando datos de validación FV...</small>
             </div>
             <div class="sam-cen-header-grid" aria-label="Cabecera SCADA SAM vs CEN">
-              <div><span>PLANTA</span><strong id="samCenHeaderPlant">CEME1</strong></div>
+              <div><span>PLANTA</span><strong id="samCenHeaderPlant">Planta FV</strong></div>
               <div><span>BARRA</span><strong id="samCenHeaderBus">MIRAJE_220</strong></div>
               <div><span>AÑO</span><strong id="samCenHeaderYear">2025</strong></div>
               <div><span>MODO</span><strong>Verificación SAM vs CEN</strong></div>
@@ -1205,7 +1205,7 @@
             <h3>NOTA METODOLÓGICA</h3>
             <p>
               SAM NASA 2025 representa una simulación técnica de generación FV bajo meteorología histórica 2025 y pérdidas
-              configuradas en SAM. No incorpora fallas, mantenimientos ni indisponibilidad técnica real de CEME1. Por ello,
+              configuradas en SAM. No incorpora fallas, mantenimientos ni indisponibilidad técnica real de la Planta FV. Por ello,
               el residuo SAM − CEN disponible se interpreta como una discrepancia técnico-operacional, no como error puro
               del modelo.
             </p>
@@ -1455,7 +1455,7 @@
         <div class="plant-head-grid">
           <article class="plant-title-card card">
             <p class="section-kicker">SIMULACIÓN ENERGÉTICA — SAM</p>
-            <h2>Simulación energética FV CEME1</h2>
+            <h2>Simulación energética Planta FV</h2>
             <p>
               Resultados energéticos de SAM y comparación meteorológica TMY versus NASA POWER 2025, sin contraste operacional CEN en esta sección.
             </p>
@@ -1469,12 +1469,12 @@
           </article>
         </div>
 
-        <section id="ceme1ArchitectureSection" class="ceme1-architecture card" aria-label="Arquitectura equivalente CEME1">
+        <section id="ceme1ArchitectureSection" class="ceme1-architecture card" aria-label="Arquitectura equivalente Planta FV">
           <div class="ceme1-arch-head">
             <div>
-              <p class="section-kicker">ARQUITECTURA EQUIVALENTE CEME1</p>
-              <h3>Arquitectura equivalente CEME1 - seis submodelos SAM</h3>
-              <p id="ceme1ArchitectureNote">Cargando configuracion estructural desde dashboard/data/ceme1_architecture.json...</p>
+              <p class="section-kicker">ARQUITECTURA EQUIVALENTE PLANTA FV</p>
+              <h3>Arquitectura equivalente Planta FV - seis submodelos SAM</h3>
+              <p id="ceme1ArchitectureNote">Cargando configuracion estructural...</p>
             </div>
             <div class="arch-geometry" aria-label="Geometria Este Oeste">
               <span>Este <b id="ceme1TiltEast">5°</b></span>
@@ -1483,7 +1483,7 @@
             </div>
           </div>
 
-          <div class="arch-summary" id="ceme1ArchitectureSummary" aria-label="Totales arquitectura CEME1"></div>
+          <div class="arch-summary" id="ceme1ArchitectureSummary" aria-label="Totales arquitectura Planta FV"></div>
           <div class="arch-family-grid" id="ceme1ArchitectureFamilies" aria-label="Familias y submodelos SC01 a SC06"></div>
           <div class="arch-profile-panel">
             <div class="panel-head">
@@ -1501,7 +1501,7 @@
             </p>
           </div>
           <div class="arch-footnote">
-            Los seis submodelos constituyen una representacion equivalente de una unica planta CEME1 y sus resultados horarios se consolidan para obtener la generacion total modelada.
+            Los seis submodelos constituyen una representacion equivalente de una unica Planta FV y sus resultados horarios se consolidan para obtener la generacion total modelada.
           </div>
         </section>
 
@@ -1561,7 +1561,7 @@
         <div class="plant-head-grid">
           <article class="plant-title-card card">
             <p class="section-kicker">CLIPPING FV — SAM</p>
-            <h2>Clipping estimado DC/AC CEME1</h2>
+            <h2>Clipping estimado DC/AC Planta FV</h2>
             <p>
               Energía limitada por la conversión DC/AC del modelo SAM. Esta señal es distinta de las Reducciones CEN y no se usa como carga BESS en el Bloque 1.
             </p>
@@ -1712,7 +1712,7 @@
         <div class="report-view-head">
           <div>
             <p class="section-kicker">REPORTES</p>
-            <h2>Reporte de resultados — Modelación FV CEME1 y contraste CEN</h2>
+            <h2>Reporte de resultados — Modelación Planta FV y contraste CEN</h2>
             <span>PDF automático generado desde los JSON del proyecto.</span>
           </div>
           <div class="report-export-actions pdf-hide">
@@ -1730,7 +1730,7 @@
               <span class="report-brand-mark">⚡</span>
               <div>
                 <strong>Storage Analytics</strong>
-                <small>CEME1 FV + DUNE BESS</small>
+                <small>Planta FV + BESS</small>
               </div>
             </div>
             <div class="report-date">
@@ -1740,7 +1740,7 @@
           </header>
 
           <section class="pdf-section report-title-section">
-            <h1>Reporte de resultados — Modelación FV CEME1 y contraste CEN</h1>
+            <h1>Reporte de resultados — Modelación Planta FV y contraste CEN</h1>
             <span>Modelación energética FV, comparación meteorológica SAM y referencia operacional CEN 2025.</span>
           </section>
 
@@ -1837,7 +1837,7 @@
           <section class="pdf-section">
             <h2>Limitaciones metodológicas</h2>
             <ul id="reportLimitationsList" class="report-list">
-              <li>No se dispone de irradiancia in situ en CEME1.</li>
+              <li>No se dispone de irradiancia in situ en la Planta FV.</li>
               <li>El contraste con referencias operacionales oficiales del CEN constituye una verificación de consistencia técnico-operacional.</li>
               <li>SAM no modela fallas reales, mantenimientos no informados ni indisponibilidad técnica histórica.</li>
               <li>Las reducciones CEN se interpretan como curtailment operacional recuperable potencialmente por el BESS.</li>
@@ -1853,7 +1853,7 @@
           </section>
 
           <footer class="pdf-footer report-footer">
-            Storage Analytics — CEME1 FV + BESS
+            Storage Analytics — Planta FV + BESS
           </footer>
         </article>
       </section>

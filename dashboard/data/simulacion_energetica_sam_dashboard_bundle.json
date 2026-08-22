@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "planta": "CEME1",
+    "planta": "Planta FV",
     "anio": 2025,
-    "descripcion": "Simulación energética SAM CEME1: TMY Explorador Solar y NASA POWER 2025",
+    "descripcion": "Simulación energética SAM Planta FV: TMY Explorador Solar y NASA POWER 2025",
     "fuente": "SAM Detailed PV",
     "nota": "JSON dedicado a la pestaña Simulación energética. No incluye CEN y no estima variables ausentes.",
     "casos": [

@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "planta": "CEME1",
-    "ubicacion": "María Elena / CEME1",
+    "planta": "Planta FV",
+    "ubicacion": "María Elena / Planta FV",
     "comparacion": "TMY Explorador Solar vs NASA POWER 2025",
     "conclusion_metodologica": "El TMY Explorador Solar se mantiene como referencia meteorológica típica para caracterización del recurso solar. NASA POWER 2025 se utiliza como base histórica para contrastes con datos operacionales CEN 2025, por corresponder al mismo año calendario. El contraste TMY Explorador Solar vs NASA POWER 2025 no constituye una validación contra mediciones de terreno.",
     "advertencia_metodologica": "El contraste TMY Explorador Solar vs NASA POWER 2025 no constituye una validación contra mediciones de terreno."

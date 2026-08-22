@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "planta": "CEME1",
+    "planta": "Planta FV",
     "anio": 2025,
     "descripcion": "Perfil horario promedio Este/Oeste desde submodelos SAM",
     "este": [
@@ -14,7 +14,7 @@
       "SC06"
     ],
     "unidad": "MWh por hora promedio",
-    "uso": "Evidencia de la configuración V invertida Este/Oeste de CEME1 modelada en SAM."
+    "uso": "Evidencia de la configuración V invertida Este/Oeste de Planta FV modelada en SAM."
   },
   "perfil_horario": [
     {

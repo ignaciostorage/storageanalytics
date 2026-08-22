@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "planta": "CEME1",
+    "planta": "Planta FV",
     "anio": 2025,
     "barra_precio": "Miraje 220 kV",
-    "descripcion": "Verificación de consistencia técnico-operacional CEME1: SAM NASA/TMY vs Pronóstico centralizado CEN y CEN disponible",
+    "descripcion": "Verificación de consistencia técnico-operacional Planta FV: SAM NASA/TMY vs Pronóstico centralizado CEN y CEN disponible",
     "metodologia": "CEN disponible = Generación real CEN + Reducciones CEN.",
     "coberturas_temporales": {
       "T_FULL": "8760 h",
@@ -372,7 +372,7 @@
       "suma_ref_gwh": 935.3522098333333,
       "delta_gwh": 59.485824271566685,
       "delta_pct": 6.3597245664460695,
-      "normalizacion_nrmse": "Potencia AC nominal CEME1"
+      "normalizacion_nrmse": "Potencia AC nominal Planta FV"
     },
     {
       "comparacion": "SAM TMY Explorador Solar vs CEN disponible",
@@ -389,7 +389,7 @@
       "suma_ref_gwh": 935.3522098333333,
       "delta_gwh": 82.7856226401268,
       "delta_pct": 8.850743256904053,
-      "normalizacion_nrmse": "Potencia AC nominal CEME1"
+      "normalizacion_nrmse": "Potencia AC nominal Planta FV"
     },
     {
       "comparacion": "Pronóstico centralizado CEN vs CEN disponible",
@@ -406,7 +406,7 @@
       "suma_ref_gwh": 934.0635633333333,
       "delta_gwh": 61.898906666666676,
       "delta_pct": 6.626840944932268,
-      "normalizacion_nrmse": "Potencia AC nominal CEME1"
+      "normalizacion_nrmse": "Potencia AC nominal Planta FV"
     },
     {
       "comparacion": "SAM NASA 2025 vs Pronóstico centralizado CEN",
@@ -423,7 +423,7 @@
       "suma_ref_gwh": 995.9624699999999,
       "delta_gwh": -2.847499505100018,
       "delta_pct": -0.28590429768905024,
-      "normalizacion_nrmse": "Potencia AC nominal CEME1"
+      "normalizacion_nrmse": "Potencia AC nominal Planta FV"
     },
     {
       "comparacion": "SAM NASA 2025 vs Generación real CEN",
@@ -440,7 +440,7 @@
       "suma_ref_gwh": 676.225,
       "delta_gwh": 318.61303410489995,
       "delta_pct": 47.11642339530481,
-      "normalizacion_nrmse": "Potencia AC nominal CEME1"
+      "normalizacion_nrmse": "Potencia AC nominal Planta FV"
     }
   ],
   "deltas": [
@@ -478,7 +478,7 @@
     }
   ],
   "limitaciones": [
-    "No se dispone de irradiancia in situ en CEME1.",
+    "No se dispone de irradiancia in situ en Planta FV.",
     "El contraste constituye una verificación de consistencia y no una validación estricta.",
     "SAM no modela fallas reales, mantenimientos no informados ni indisponibilidad técnica histórica.",
     "La única señal de energía candidata para carga del BESS en la metodología actual es Reducciones CEN.",
@@ -1648,9 +1648,9 @@
   ],
   "clipping_sam": {
     "metadata": {
-      "planta": "CEME1",
+      "planta": "Planta FV",
       "anio": 2025,
-      "descripcion": "Pérdidas internas por clipping del inversor en la simulación SAM de CEME1.",
+      "descripcion": "Pérdidas internas por clipping del inversor en la simulación SAM de Planta FV.",
       "fuente": "SAM Detailed PV",
       "archivo_origen": "Archivos horarios SAM por submodelo",
       "unidad_base": "MWh por hora; MW para potencias",
@@ -3541,7 +3541,7 @@
       "fuente": "Pronóstico centralizado CEN",
       "variable_dashboard": "pronostico_centralizado_cen_mwh",
       "uso_bloque1": "Referencia operacional CEN",
-      "observacion": "Archivos Centralizado CEME1 2025."
+      "observacion": "Archivos Centralizado Planta FV 2025."
     },
     {
       "fuente": "Generación real CEN",

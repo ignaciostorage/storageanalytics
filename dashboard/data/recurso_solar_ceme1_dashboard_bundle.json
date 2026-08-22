@@ -1,17 +1,17 @@
 {
   "metadata": {
-    "planta": "CEME1",
-    "ubicacion": "María Elena / CEME1",
-    "descripcion": "Recurso solar CEME1: TMY Explorador Solar, NASA POWER 2025 y comparativa."
+    "planta": "Planta FV",
+    "ubicacion": "María Elena / Planta FV",
+    "descripcion": "Recurso solar Planta FV: TMY Explorador Solar, NASA POWER 2025 y comparativa."
   },
   "tmy_explorador": {
     "metadata": {
-      "planta": "CEME1",
-      "ubicacion": "María Elena / CEME1",
+      "planta": "Planta FV",
+      "ubicacion": "María Elena / Planta FV",
       "fuente_meteorologica": "TMY Explorador Solar",
       "fuente": "Explorador Solar",
       "tipo_dato": "Año Meteorológico Típico (TMY)",
-      "archivo_origen": "ExploradorSolar_CEME1_TMY_SAM.csv",
+      "archivo_origen": "ExploradorSolar_Planta FV_TMY_SAM.csv",
       "latitude": "-22.3594",
       "longitude": "-69.5981",
       "elevation_m": "1221",
@@ -35,7 +35,7 @@
       "advertencia_dni": "",
       "integridad_temporal": {
         "fuente_meteorologica": "TMY Explorador Solar",
-        "archivo_origen": "ExploradorSolar_CEME1_TMY_SAM.csv",
+        "archivo_origen": "ExploradorSolar_Planta FV_TMY_SAM.csv",
         "registros_archivo": 8760,
         "registros_timestamp_validos": 8760,
         "timestamps_unicos": 8760,
@@ -59,8 +59,8 @@
       "fuente_meteorologica": "TMY Explorador Solar",
       "fuente": "Explorador Solar",
       "tipo_dato": "Año Meteorológico Típico (TMY)",
-      "ubicacion": "María Elena / CEME1",
-      "archivo_origen": "ExploradorSolar_CEME1_TMY_SAM.csv",
+      "ubicacion": "María Elena / Planta FV",
+      "archivo_origen": "ExploradorSolar_Planta FV_TMY_SAM.csv",
       "nota_metodologica": "Los datos corresponden al Año Meteorológico Típico (TMY) del Explorador Solar. Representan condiciones típicas de largo plazo y no mediciones reales de un año calendario específico.",
       "convencion_temporal": "El archivo declara Time Zone=-4. Se mantiene la convencion temporal del archivo sin conversion UTC, UTC-3/UTC-4 ni ajuste DST.",
       "columna_dni_usada": "DNI",
@@ -183520,12 +183520,12 @@
   },
   "nasa_power_2025": {
     "metadata": {
-      "planta": "CEME1",
-      "ubicacion": "María Elena / CEME1",
+      "planta": "Planta FV",
+      "ubicacion": "María Elena / Planta FV",
       "fuente_meteorologica": "NASA POWER 2025",
       "fuente": "NASA POWER",
       "tipo_dato": "Año calendario histórico 2025",
-      "archivo_origen": "NasaPower_CEME1_2025_SAM.csv",
+      "archivo_origen": "NasaPower_Planta FV_2025_SAM.csv",
       "latitude": "-22.3594",
       "longitude": "-69.5981",
       "elevation_m": "1221",
@@ -183549,7 +183549,7 @@
       "advertencia_dni": "",
       "integridad_temporal": {
         "fuente_meteorologica": "NASA POWER 2025",
-        "archivo_origen": "NasaPower_CEME1_2025_SAM.csv",
+        "archivo_origen": "NasaPower_Planta FV_2025_SAM.csv",
         "registros_archivo": 8760,
         "registros_timestamp_validos": 8760,
         "timestamps_unicos": 8760,
@@ -183573,8 +183573,8 @@
       "fuente_meteorologica": "NASA POWER 2025",
       "fuente": "NASA POWER",
       "tipo_dato": "Año calendario histórico 2025",
-      "ubicacion": "María Elena / CEME1",
-      "archivo_origen": "NasaPower_CEME1_2025_SAM.csv",
+      "ubicacion": "María Elena / Planta FV",
+      "archivo_origen": "NasaPower_Planta FV_2025_SAM.csv",
       "nota_metodologica": "Los datos corresponden al año calendario 2025 de NASA POWER. Se utilizan como base meteorológica histórica para comparaciones con resultados operacionales CEN 2025.",
       "convencion_temporal": "El archivo declara Time Zone=-4. Se mantiene la convencion temporal del archivo sin conversion UTC, UTC-3/UTC-4 ni ajuste DST.",
       "columna_dni_usada": "DNI",
@@ -367034,8 +367034,8 @@
   },
   "comparativa": {
     "metadata": {
-      "planta": "CEME1",
-      "ubicacion": "María Elena / CEME1",
+      "planta": "Planta FV",
+      "ubicacion": "María Elena / Planta FV",
       "comparacion": "TMY Explorador Solar vs NASA POWER 2025",
       "conclusion_metodologica": "El TMY Explorador Solar se mantiene como referencia meteorológica típica para caracterización del recurso solar. NASA POWER 2025 se utiliza como base histórica para contrastes con datos operacionales CEN 2025, por corresponder al mismo año calendario. El contraste TMY Explorador Solar vs NASA POWER 2025 no constituye una validación contra mediciones de terreno.",
       "advertencia_metodologica": "El contraste TMY Explorador Solar vs NASA POWER 2025 no constituye una validación contra mediciones de terreno."
