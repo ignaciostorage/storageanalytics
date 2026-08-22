@@ -4882,8 +4882,10 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     const sesgoAnual = n(k.energia_cen_disponible_gwh) ? (n(k.residuo_sam_nasa_vs_cen_disponible_gwh) / n(k.energia_cen_disponible_gwh)) * 100 : null;
 
     const block1 = `
-      <p class="sa-report-figure-title">Figura 1 — Diagrama unifilar Planta FV (simplificado)</p>
-      <div class="sa-arch-diagram">${buildUnifilarSvg(archKpis)}</div>
+      <p class="sa-report-figure-title">Figura 1 — Diagrama unifilar equivalente Planta FV</p>
+      <div class="sa-arch-diagram">
+        <img class="sa-arch-diagram-img" src="../assets/report/arquitectura-planta-fv.png" alt="Diagrama unifilar equivalente Planta FV con seis submodelos FV, inversores y punto de inyección" />
+      </div>
       ${kpiRow([
         ["Potencia DC", fmt(archKpis.potencia_dc_mwp, 2), "MWdc", "green"],
         ["Módulos", fmtInt(archKpis.modulos), "", ""],
@@ -5426,6 +5428,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       .sa-stat-tile p{margin:0 0 4px;font-size:10px;color:#1f4773;font-weight:800;text-transform:uppercase}
       .sa-stat-tile strong{font-size:18px}
       .sa-arch-diagram{margin:6px 0 10px;break-inside:avoid;page-break-inside:avoid}
+      .sa-arch-diagram-img{display:block;width:100%;max-height:310px;object-fit:contain;background:#fff;border:1px solid #dbe4ee;border-radius:6px}
       .sa-report-chart.tall{height:300px}
       .sa-pdf-export-doc .sa-report-kpi-row{gap:6px}
       .sa-pdf-export-doc .sa-report-kpi-row .sa-report-kpi strong{font-size:15px}
@@ -5433,6 +5436,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       .sa-pdf-export-doc .sa-stat-tile strong{font-size:14px}
       .sa-pdf-export-doc .sa-report-two-col{gap:10px}
       .sa-pdf-export-doc .sa-report-chart.tall{height:220px}
+      .sa-pdf-export-doc .sa-arch-diagram-img{max-height:290px}
       @media print{.sa-report-kpi-row,.sa-stat-row,.sa-arch-diagram{break-inside:avoid;page-break-inside:avoid}}
     `;
     document.head.appendChild(style);
