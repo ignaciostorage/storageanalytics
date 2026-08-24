@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "schema_version": "1.0",
+    "scenario_id": "C",
+    "scenario_name": "Híbrido Top-4 + liberación reactiva de espacio",
+    "year": 2025,
+    "resolution": "hourly",
+    "hours": 8760,
+    "source_file": "Serie Horaria CEN_SEN_2025.xlsx",
+    "price_used_for_dispatch": true,
+    "price_information": "daily_perfect_foresight",
+    "curtailment_foresight": false,
+    "charge_source": "curtailment_CEN_only",
+    "SOC_trigger_pct": 70.0,
+    "generated_at": "2026-08-24T16:17:35.746021-04:00"
+  },
+  "files": {
+    "kpis": "dashboard_C_kpis.json",
+    "hourly": "dashboard_C_horario.json",
+    "monthly": "dashboard_C_mensual.json",
+    "quarterly": "dashboard_C_trimestral.json",
+    "excel": "Resultados_Escenario_C_2025.xlsx",
+    "csv": "Resultados_Escenario_C_2025.csv"
+  }
+}

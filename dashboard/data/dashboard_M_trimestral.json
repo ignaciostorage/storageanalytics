@@ -1,0 +1,69 @@
+{
+  "metadata": {
+    "schema_version": "1.0",
+    "scenario_id": "M",
+    "scenario_name": "Benchmark MILP ex post",
+    "year": 2025,
+    "resolution": "quarterly",
+    "hours": 8760,
+    "source_file": "Serie Horaria CEN_SEN_2025.xlsx",
+    "charge_source": "curtailment_CEN_only",
+    "price_information": "perfect_foresight_full_horizon",
+    "terminal_SOC_forced_pct": 50.0,
+    "generated_at": "2026-08-24T16:22:58.047685-04:00"
+  },
+  "records": [
+    {
+      "periodo": "2025Q1",
+      "E_curt_MWh": 79930.4985,
+      "E_capt_MWh": 71231.13307090892,
+      "tasa_captura_pct": 89.1163378280556,
+      "E_desc_MWh": 63247.054808533125,
+      "E_no_capt_MWh": 8699.365429091074,
+      "throughput_AC_MWh": 134478.18787944206,
+      "EFC_desc": 47.411585313742975,
+      "Ingreso_bruto_USD": 8154344.06836426,
+      "PM_desc_ponderado_USD_MWh": 128.92843932495805,
+      "SOC_final_pct": 90.00000000000001
+    },
+    {
+      "periodo": "2025Q2",
+      "E_curt_MWh": 43688.47616666667,
+      "E_capt_MWh": 39770.52197594194,
+      "tasa_captura_pct": 91.03206489560733,
+      "E_desc_MWh": 36207.21716846804,
+      "E_no_capt_MWh": 3917.95419072472,
+      "throughput_AC_MWh": 75977.73914440998,
+      "EFC_desc": 27.141841955373344,
+      "Ingreso_bruto_USD": 5667556.977186964,
+      "PM_desc_ponderado_USD_MWh": 156.53113993313733,
+      "SOC_final_pct": 41.45889648072815
+    },
+    {
+      "periodo": "2025Q3",
+      "E_curt_MWh": 58504.10933333334,
+      "E_capt_MWh": 57585.947166508515,
+      "tasa_captura_pct": 98.43060226488792,
+      "E_desc_MWh": 51524.80208985845,
+      "E_no_capt_MWh": 918.1621668248245,
+      "throughput_AC_MWh": 109110.74925636697,
+      "EFC_desc": 38.624289422682494,
+      "Ingreso_bruto_USD": 4768690.231047269,
+      "PM_desc_ponderado_USD_MWh": 92.55135464141614,
+      "SOC_final_pct": 42.61740322442799
+    },
+    {
+      "periodo": "2025Q4",
+      "E_curt_MWh": 77004.12583333332,
+      "E_capt_MWh": 71987.11240424225,
+      "tasa_captura_pct": 93.48474724594648,
+      "E_desc_MWh": 64335.29551589385,
+      "E_no_capt_MWh": 5017.013429091078,
+      "throughput_AC_MWh": 136322.4079201361,
+      "EFC_desc": 48.227357957941415,
+      "Ingreso_bruto_USD": 6600061.09862899,
+      "PM_desc_ponderado_USD_MWh": 102.58849432032942,
+      "SOC_final_pct": 50.0
+    }
+  ]
+}

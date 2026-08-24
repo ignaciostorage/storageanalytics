@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "schema_version": "1.0",
+    "scenario_id": "M",
+    "scenario_name": "Benchmark MILP ex post",
+    "year": 2025,
+    "resolution": "hourly",
+    "hours": 8760,
+    "source_file": "Serie Horaria CEN_SEN_2025.xlsx",
+    "charge_source": "curtailment_CEN_only",
+    "price_information": "perfect_foresight_full_horizon",
+    "terminal_SOC_forced_pct": 50.0,
+    "generated_at": "2026-08-24T16:22:58.047685-04:00"
+  },
+  "files": {
+    "kpis": "dashboard_M_kpis.json",
+    "hourly": "dashboard_M_horario.json",
+    "monthly": "dashboard_M_mensual.json",
+    "quarterly": "dashboard_M_trimestral.json",
+    "excel": "Resultados_Benchmark_M_2025.xlsx",
+    "csv": "Resultados_Benchmark_M_2025.csv"
+  }
+}

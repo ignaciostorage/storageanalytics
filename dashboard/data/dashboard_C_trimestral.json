@@ -1,0 +1,83 @@
+{
+  "metadata": {
+    "schema_version": "1.0",
+    "scenario_id": "C",
+    "scenario_name": "Híbrido Top-4 + liberación reactiva de espacio",
+    "year": 2025,
+    "resolution": "quarterly",
+    "hours": 8760,
+    "source_file": "Serie Horaria CEN_SEN_2025.xlsx",
+    "price_used_for_dispatch": true,
+    "price_information": "daily_perfect_foresight",
+    "curtailment_foresight": false,
+    "charge_source": "curtailment_CEN_only",
+    "SOC_trigger_pct": 70.0,
+    "generated_at": "2026-08-24T16:17:35.746021-04:00"
+  },
+  "records": [
+    {
+      "periodo": "2025Q1",
+      "E_curt_MWh": 79930.4985,
+      "E_capt_MWh": 71226.32716262087,
+      "tasa_captura_pct": 89.11032521912881,
+      "E_desc_MWh": 63672.81365714273,
+      "E_no_capt_MWh": 8704.17133737912,
+      "throughput_AC_MWh": 134899.1408197636,
+      "EFC_desc": 47.73074487042184,
+      "Ingreso_bruto_USD": 5652349.323241418,
+      "PM_desc_ponderado_USD_MWh": 88.77178498310865,
+      "SOC_prom_pct": 34.74119938270316,
+      "SOC_final_pct": 55.92296179123634,
+      "horas_descarga_top4": 203,
+      "horas_liberacion_reactiva": 71
+    },
+    {
+      "periodo": "2025Q2",
+      "E_curt_MWh": 43688.47616666667,
+      "E_capt_MWh": 40300.8207139142,
+      "tasa_captura_pct": 92.24588323971535,
+      "E_desc_MWh": 36648.79298228654,
+      "E_no_capt_MWh": 3387.6554527524686,
+      "throughput_AC_MWh": 76949.61369620074,
+      "EFC_desc": 27.472858307561125,
+      "Ingreso_bruto_USD": 4199288.339942173,
+      "PM_desc_ponderado_USD_MWh": 114.58190019987329,
+      "SOC_prom_pct": 23.37119597093279,
+      "SOC_final_pct": 10.0,
+      "horas_descarga_top4": 140,
+      "horas_liberacion_reactiva": 23
+    },
+    {
+      "periodo": "2025Q3",
+      "E_curt_MWh": 58504.10933333334,
+      "E_capt_MWh": 56824.27206404875,
+      "tasa_captura_pct": 97.12868499593158,
+      "E_desc_MWh": 50536.80287315698,
+      "E_no_capt_MWh": 1679.837269284577,
+      "throughput_AC_MWh": 107361.07493720573,
+      "EFC_desc": 37.88366032470538,
+      "Ingreso_bruto_USD": 4033679.7686762074,
+      "PM_desc_ponderado_USD_MWh": 79.81667892209953,
+      "SOC_prom_pct": 29.203190652945636,
+      "SOC_final_pct": 35.42905850333579,
+      "horas_descarga_top4": 187,
+      "horas_liberacion_reactiva": 33
+    },
+    {
+      "periodo": "2025Q4",
+      "E_curt_MWh": 77004.12583333332,
+      "E_capt_MWh": 71501.03505197575,
+      "tasa_captura_pct": 92.85351178030592,
+      "E_desc_MWh": 63863.43306078941,
+      "E_no_capt_MWh": 5503.090781357594,
+      "throughput_AC_MWh": 135364.46811276517,
+      "EFC_desc": 47.87363797660375,
+      "Ingreso_bruto_USD": 4646270.517395885,
+      "PM_desc_ponderado_USD_MWh": 72.75322190984095,
+      "SOC_prom_pct": 35.90184715514598,
+      "SOC_final_pct": 45.72944824036407,
+      "horas_descarga_top4": 208,
+      "horas_liberacion_reactiva": 76
+    }
+  ]
+}

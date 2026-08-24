@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Storage Analytics | Planta FV + BESS</title>
-  <link rel="stylesheet" href="dashboard.css?v=20260824-bess-a-v1" />
+  <link rel="stylesheet" href="dashboard.css?v=20260824-bess-abcm-v1" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-  <script src="dashboard.js?v=20260824-bess-a-v1" defer></script>
+  <script src="dashboard.js?v=20260824-bess-abcm-v1" defer></script>
   <style id="dashboard-live-fixes">
     .sim-strip {
       padding: 11px 16px;
@@ -324,10 +324,10 @@
 </nav>
 
     <section class="active-strategy">
-      <p>ESCENARIO ACTIVO</p>
+      <p>ESCENARIO / REFERENCIA ACTIVA</p>
       <h3 id="strategyName"><span class="badge-dot"></span> Escenario A</h3>
       <small id="strategyDescription">Recuperación energética prioritaria<br><br>Estado:<br>Simulación verificada</small>
-      <button id="changeStrategyBtn" type="button">Otros escenarios pendientes</button>
+      <button id="changeStrategyBtn" type="button">Cambiar escenario / referencia</button>
       <div id="scenarioSelectorPanel" class="scenario-selector-panel" hidden></div>
     </section>
   </aside>
@@ -438,7 +438,7 @@
       </article>
 
       <article class="card bess-state">
-        <h3>ESTADO BESS <small>ESCENARIO A</small></h3>
+        <h3>ESTADO BESS <small id="bessStateScenarioTag">ESCENARIO A</small></h3>
         <div class="battery-wrap">
           <div class="battery-head"></div>
           <div class="battery"><div id="batteryFill"></div></div>
@@ -474,7 +474,7 @@
           <li><span>BESS - ingreso observado</span><strong id="bessIngresoDia">-- USD</strong></li>
           <li><span>BESS - SOC final día</span><strong id="bessSocFinalDia">-- %</strong></li>
         </ul>
-        <div class="benefit-line"><span>BESS</span><strong id="beneficio">Ingreso observado ex post; el precio no interviene en la decisión del Escenario A.</strong></div>
+        <div class="benefit-line"><span>BESS</span><strong id="beneficio">Ingreso observado ex post desde JSON oficiales; degradación y beneficio neto pendientes.</strong></div>
       </article>
     </section>
 
@@ -507,8 +507,8 @@
         </div>
       </article>
       <article class="card recommendation">
-        <h3>RECOMENDACIÓN</h3>
-        <p id="recommendationText">Comparación no disponible todavía. El Escenario A constituye la línea base de recuperación energética. La recomendación final requiere los Escenarios B, C, D, Benchmark M y el modelo de degradación.</p>
+        <h3>LECTURA COMPARATIVA</h3>
+        <p id="recommendationText">Comparación técnica disponible para A, B, C y Benchmark M cuando carguen los JSON oficiales. D, SOH, costo de degradación y beneficio neto permanecen pendientes.</p>
         <small>Estado comparación:</small>
         <strong id="recommendedStrategy">Pendiente</strong>
         <button type="button">Ver análisis detallado →</button>
@@ -1649,7 +1649,7 @@
     <!-- INICIO VISTA OPERACIÓN BESS -->
     <section id="view-bess" class="dashboard-view">
       <section id="bessScenarioHost" class="plant-sam-shell">
-        <div class="bess-loading card">Cargando Escenario A BESS desde JSON oficiales...</div>
+        <div class="bess-loading card">Cargando escenario BESS desde JSON oficiales...</div>
       </section>
     </section>
     <!-- FIN VISTA OPERACIÓN BESS -->
