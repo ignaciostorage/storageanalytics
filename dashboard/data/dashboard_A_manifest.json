@@ -1,0 +1,44 @@
+{
+  "metadata": {
+    "schema_version": "1.0",
+    "scenario_id": "A",
+    "scenario_name": "Recuperación energética prioritaria",
+    "year": 2025,
+    "resolution": "hourly",
+    "hours": 8760,
+    "source_file": "Serie Horaria CEN_SEN_2025.xlsx",
+    "source_bus": "MIRAJE_220",
+    "price_used_for_dispatch": false,
+    "charge_source": "curtailment_CEN_only",
+    "generated_at": "2026-08-22T17:26:15.343645-04:00"
+  },
+  "files": {
+    "kpis": "dashboard_A_kpis.json",
+    "hourly": "dashboard_A_horario.json",
+    "monthly": "dashboard_A_mensual.json",
+    "quarterly": "dashboard_A_trimestral.json",
+    "excel": "Resultados_Escenario_A_2025.xlsx",
+    "csv": "Resultados_Escenario_A_2025.csv",
+    "verification_log": "Verificacion_Escenario_A.txt"
+  },
+  "dashboard_series": [
+    "P_FV_MW",
+    "P_curt_MW",
+    "P_c_MW",
+    "P_d_MW",
+    "SOC_fin_pct",
+    "PM_USD_MWh"
+  ],
+  "primary_kpis": [
+    "E_curt_total_MWh",
+    "E_capturada_MWh",
+    "tasa_captura_pct",
+    "E_descargada_MWh",
+    "E_no_capturada_MWh",
+    "throughput_AC_MWh",
+    "EFC_desc",
+    "Ingreso_bruto_USD",
+    "Ingreso_ajustado_USD",
+    "SOC_final_pct"
+  ]
+}

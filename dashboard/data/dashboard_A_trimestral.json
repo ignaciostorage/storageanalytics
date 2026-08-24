@@ -1,0 +1,81 @@
+{
+  "metadata": {
+    "schema_version": "1.0",
+    "scenario_id": "A",
+    "scenario_name": "Recuperación energética prioritaria",
+    "year": 2025,
+    "resolution": "quarterly",
+    "hours": 8760,
+    "source_file": "Serie Horaria CEN_SEN_2025.xlsx",
+    "source_bus": "MIRAJE_220",
+    "price_used_for_dispatch": false,
+    "charge_source": "curtailment_CEN_only",
+    "generated_at": "2026-08-22T17:26:15.343645-04:00"
+  },
+  "records": [
+    {
+      "periodo": "2025Q1",
+      "E_curt_MWh": 79930.4985,
+      "E_capt_MWh": 73428.74517751846,
+      "tasa_captura_pct": 91.86574155735869,
+      "E_desc_MWh": 66223.5362238094,
+      "E_no_capt_MWh": 6501.753322481545,
+      "throughput_AC_MWh": 139652.28140132787,
+      "EFC_desc": 49.642830752480805,
+      "Ingreso_bruto_USD": 5270149.268677341,
+      "PM_desc_ponderado_USD_MWh": 79.58121189521378,
+      "SOC_prom_pct": 24.654304964301176,
+      "SOC_final_pct": 10.0,
+      "horas_carga": 834,
+      "horas_descarga": 293
+    },
+    {
+      "periodo": "2025Q2",
+      "E_curt_MWh": 43688.47616666667,
+      "E_capt_MWh": 40564.33834636363,
+      "tasa_captura_pct": 92.84905747596963,
+      "E_desc_MWh": 36305.082819995456,
+      "E_no_capt_MWh": 3124.1378203030426,
+      "throughput_AC_MWh": 76869.42116635908,
+      "EFC_desc": 27.215204512740222,
+      "Ingreso_bruto_USD": 3037041.2414267245,
+      "PM_desc_ponderado_USD_MWh": 83.65333461666249,
+      "SOC_prom_pct": 16.90550005287594,
+      "SOC_final_pct": 10.0,
+      "horas_carga": 496,
+      "horas_descarga": 178
+    },
+    {
+      "periodo": "2025Q3",
+      "E_curt_MWh": 58504.10933333334,
+      "E_capt_MWh": 57655.712499841844,
+      "tasa_captura_pct": 98.54985086832505,
+      "E_desc_MWh": 51601.86268735846,
+      "E_no_capt_MWh": 848.396833491486,
+      "throughput_AC_MWh": 109257.5751872003,
+      "EFC_desc": 38.68205598752508,
+      "Ingreso_bruto_USD": 3456123.861592105,
+      "PM_desc_ponderado_USD_MWh": 66.9767268389479,
+      "SOC_prom_pct": 20.832025232114912,
+      "SOC_final_pct": 10.0,
+      "horas_carga": 838,
+      "horas_descarga": 232
+    },
+    {
+      "periodo": "2025Q4",
+      "E_curt_MWh": 77004.12583333332,
+      "E_capt_MWh": 73456.85239679347,
+      "tasa_captura_pct": 95.39339821321066,
+      "E_desc_MWh": 65743.88289513017,
+      "E_no_capt_MWh": 3547.2734365398624,
+      "throughput_AC_MWh": 139200.73529192363,
+      "EFC_desc": 49.283270536079584,
+      "Ingreso_bruto_USD": 3495590.1749935006,
+      "PM_desc_ponderado_USD_MWh": 53.16981627886826,
+      "SOC_prom_pct": 25.325469277626016,
+      "SOC_final_pct": 10.0,
+      "horas_carga": 999,
+      "horas_descarga": 278
+    }
+  ]
+}

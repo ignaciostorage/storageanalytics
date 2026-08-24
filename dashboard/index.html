@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Storage Analytics | Planta FV + BESS</title>
-  <link rel="stylesheet" href="dashboard.css?v=20260814-bloque1" />
+  <link rel="stylesheet" href="dashboard.css?v=20260824-bess-a-v1" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-  <script src="dashboard.js?v=20260817-reporte-pdf-v3" defer></script>
+  <script src="dashboard.js?v=20260824-bess-a-v1" defer></script>
   <style id="dashboard-live-fixes">
     .sim-strip {
       padding: 11px 16px;
@@ -324,10 +324,11 @@
 </nav>
 
     <section class="active-strategy">
-      <p>ESTRATEGIA ACTIVA</p>
-      <h3 id="strategyName"><span class="badge-dot"></span> Sin datos</h3>
-      <small id="strategyDescription">Seleccione una estrategia o cargue archivos JSON.</small>
-      <button id="changeStrategyBtn" type="button">Cambiar estrategia</button>
+      <p>ESCENARIO ACTIVO</p>
+      <h3 id="strategyName"><span class="badge-dot"></span> Escenario A</h3>
+      <small id="strategyDescription">Recuperación energética prioritaria<br><br>Estado:<br>Simulación verificada</small>
+      <button id="changeStrategyBtn" type="button">Otros escenarios pendientes</button>
+      <div id="scenarioSelectorPanel" class="scenario-selector-panel" hidden></div>
     </section>
   </aside>
 
@@ -437,21 +438,23 @@
       </article>
 
       <article class="card bess-state">
-        <h3>ESTADO BESS <small>MÓDULO EN DESARROLLO</small></h3>
+        <h3>ESTADO BESS <small>ESCENARIO A</small></h3>
         <div class="battery-wrap">
           <div class="battery-head"></div>
           <div class="battery"><div id="batteryFill"></div></div>
           <strong>BESS<br><span id="socLarge">Sin datos</span></strong>
         </div>
         <ul class="kv-list">
-          <li><span>Estado módulo</span><strong id="energiaAlmacenada">En desarrollo</strong></li>
-          <li><span>Datos operación BESS</span><strong id="energiaNominal">No disponibles</strong></li>
-          <li><span>Carga configurada</span><strong id="pMaxCarga">No disponible</strong></li>
-          <li><span>Descarga configurada</span><strong id="pMaxDescarga">No disponible</strong></li>
-          <li><span>Eficiencia configurada</span><strong id="eficiencia">No disponible</strong></li>
-          <li><span>Temperatura BESS</span><strong id="temperatura">No disponible</strong></li>
-          <li><span>SOH</span><strong id="soh">No disponible</strong></li>
-          <li><span>EFC acumulados</span><strong id="efc">No disponible</strong></li>
+          <li><span>Escenario</span><strong id="bessScenarioGeneral">A - Recuperación energética prioritaria</strong></li>
+          <li><span>Energía interna E_fin</span><strong id="energiaAlmacenada">Cargando...</strong></li>
+          <li><span>P_c / P_d horario</span><strong id="energiaNominal">Cargando...</strong></li>
+          <li><span>P_c,max</span><strong id="pMaxCarga">Cargando...</strong></li>
+          <li><span>P_d,max</span><strong id="pMaxDescarga">Cargando...</strong></li>
+          <li><span>RTE</span><strong id="eficiencia">Cargando...</strong></li>
+          <li><span>eta_c / eta_d</span><strong id="bessEtasGeneral">Cargando...</strong></li>
+          <li><span>EFC anual</span><strong id="efc">Cargando...</strong></li>
+          <li><span>Temperatura BESS</span><strong id="temperatura">Pendiente modelo de degradación</strong></li>
+          <li><span>SOH</span><strong id="soh">Pendiente Bloque 3</strong></li>
         </ul>
       </article>
 
@@ -465,8 +468,13 @@
           <li><span>Ingreso por generación real CEN</span><strong id="ingreso">-- USD</strong></li>
           <li><span>Valor económico de reducciones CEN</span><strong id="valorCurtDia">-- USD</strong></li>
           <li><span>Residuo SAM − CEN disponible</span><strong id="curtRecDia">-- MWh</strong></li>
+          <li><span>BESS - energía capturada</span><strong id="bessCaptDia">-- MWh</strong></li>
+          <li><span>BESS - energía descargada</span><strong id="bessDescDia">-- MWh</strong></li>
+          <li><span>BESS - energía no capturada</span><strong id="bessNoCaptDia">-- MWh</strong></li>
+          <li><span>BESS - ingreso observado</span><strong id="bessIngresoDia">-- USD</strong></li>
+          <li><span>BESS - SOC final día</span><strong id="bessSocFinalDia">-- %</strong></li>
         </ul>
-        <div class="benefit-line"><span>BESS</span><strong id="beneficio">Módulo en desarrollo</strong></div>
+        <div class="benefit-line"><span>BESS</span><strong id="beneficio">Ingreso observado ex post; el precio no interviene en la decisión del Escenario A.</strong></div>
       </article>
     </section>
 
@@ -475,11 +483,11 @@
       <article class="card"><h3>RESIDUO SAM − CEN DISPONIBLE</h3><div class="chart-box small"><canvas id="socChart"></canvas></div></article>
       <article class="card"><h3>PMg MIRAJE 220 kV</h3><div class="chart-box small"><canvas id="pmgChart"></canvas></div></article>
       <article class="card degradation">
-        <h3>BESS / DEGRADACIÓN <small>MÓDULO EN DESARROLLO</small></h3>
+        <h3>BESS / DEGRADACIÓN <small>PENDIENTE BLOQUE 3/4</small></h3>
         <ul class="kv-list compact">
-          <li><span>Pérdida de capacidad</span><strong id="perdidaCapacidad">No disponible</strong></li>
-          <li><span>SOH actual</span><strong id="sohActual">No disponible</strong></li>
-          <li><span>Costo degradación</span><strong id="costoDeg2">No calculado</strong></li>
+          <li><span>Pérdida de capacidad</span><strong id="perdidaCapacidad">Pendiente Bloque 3</strong></li>
+          <li><span>SOH actual</span><strong id="sohActual">Pendiente Bloque 3</strong></li>
+          <li><span>Costo degradación</span><strong id="costoDeg2">Pendiente Bloque 3/4</strong></li>
         </ul>
       </article>
     </section>
@@ -491,18 +499,18 @@
           <table>
             <thead>
               <tr>
-                <th>Estrategia</th><th>Ingreso anual (USD)</th><th>Costo degradación (USD)</th><th>Beneficio neto (USD)</th><th>SOH final (%)</th><th>EFC/año</th><th>Reducciones CEN recuperadas (MWh)</th><th>USD / MWh descargado</th><th>USD / %SOH perdido</th>
+                <th>Escenario</th><th>Estado</th><th>Capturado</th><th>% captura</th><th>Descargado</th><th>Ingreso bruto</th><th>Ingreso ajustado</th><th>EFC</th><th>Throughput</th><th>Costo degradación</th><th>SOH final</th><th>Beneficio neto</th><th>IRV</th>
               </tr>
             </thead>
-            <tbody id="strategyTable"><tr><td colspan="9">Sin datos cargados</td></tr></tbody>
+            <tbody id="strategyTable"><tr><td colspan="13">Cargando escenarios...</td></tr></tbody>
           </table>
         </div>
       </article>
       <article class="card recommendation">
         <h3>RECOMENDACIÓN</h3>
-        <p id="recommendationText">La recomendación aparecerá cuando se carguen los resultados de estrategias.</p>
-        <small>Estrategia recomendada:</small>
-        <strong id="recommendedStrategy">Sin datos</strong>
+        <p id="recommendationText">Comparación no disponible todavía. El Escenario A constituye la línea base de recuperación energética. La recomendación final requiere los Escenarios B, C, D, Benchmark M y el modelo de degradación.</p>
+        <small>Estado comparación:</small>
+        <strong id="recommendedStrategy">Pendiente</strong>
         <button type="button">Ver análisis detallado →</button>
       </article>
     </section>
@@ -1640,68 +1648,8 @@
 
     <!-- INICIO VISTA OPERACIÓN BESS -->
     <section id="view-bess" class="dashboard-view">
-      <section class="plant-sam-shell">
-        <div class="plant-head-grid">
-          <article class="plant-title-card card">
-            <p class="section-kicker">OPERACIÓN BESS — BLOQUE 2</p>
-            <h2>Módulo BESS en desarrollo</h2>
-            <p>
-              El dashboard conserva la señal energética candidata desde Reducciones CEN, pero no presenta resultados operacionales BESS hasta incorporar un JSON oficial de despacho, carga, descarga, SOC y degradación.
-            </p>
-          </article>
-
-          <article class="plant-note-card card">
-            <h3>ALCANCE ACTUAL</h3>
-            <p>
-              Bloque 1 cierra la modelación FV y el contraste CEN. La operación BESS queda separada para evitar atribuir recuperaciones no simuladas.
-            </p>
-          </article>
-        </div>
-
-        <section class="plant-energy-kpi-grid">
-          <article class="plant-energy-kpi card">
-            <p>SEÑAL CANDIDATA</p>
-            <h3>Reducciones CEN</h3>
-            <small>Energía reducida operacional observada</small>
-          </article>
-          <article class="plant-energy-kpi card">
-            <p>RESULTADOS BESS</p>
-            <h3>No disponibles</h3>
-            <small>Sin despacho oficial cargado</small>
-          </article>
-          <article class="plant-energy-kpi card">
-            <p>CLIPPING FV</p>
-            <h3>No usado</h3>
-            <small>No equivale a curtailment CEN</small>
-          </article>
-          <article class="plant-energy-kpi card">
-            <p>VALORIZACIÓN</p>
-            <h3>PMg Miraje 220 kV</h3>
-            <small>Precio marginal horario oficial CEN/SEN</small>
-          </article>
-        </section>
-
-        <section class="card sam-cen-table-card">
-          <div class="panel-head">
-            <div>
-              <h3>DATOS REQUERIDOS PARA BLOQUE 2</h3>
-              <small>Entradas mínimas para activar la vista operacional BESS</small>
-            </div>
-          </div>
-          <div class="sam-cen-table-wrap">
-            <table class="sam-cen-indicators-table">
-              <thead>
-                <tr><th>Grupo</th><th>Variable</th><th>Estado</th></tr>
-              </thead>
-              <tbody>
-                <tr><td>Despacho</td><td>Carga, descarga y SOC horario</td><td>Pendiente</td></tr>
-                <tr><td>Restricciones</td><td>Potencia, energía, eficiencia y límites operacionales</td><td>Pendiente</td></tr>
-                <tr><td>Degradación</td><td>SOH, EFC y costo asociado</td><td>Pendiente</td></tr>
-                <tr><td>Economía</td><td>Valorización con PMg Miraje 220 kV</td><td>Pendiente</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+      <section id="bessScenarioHost" class="plant-sam-shell">
+        <div class="bess-loading card">Cargando Escenario A BESS desde JSON oficiales...</div>
       </section>
     </section>
     <!-- FIN VISTA OPERACIÓN BESS -->
@@ -1712,8 +1660,8 @@
         <div class="report-view-head">
           <div>
             <p class="section-kicker">REPORTES</p>
-            <h2>Reporte de resultados — Modelación Planta FV y contraste CEN</h2>
-            <span>PDF automático generado desde los JSON del proyecto.</span>
+            <h2>Reporte Técnico — Modelación FV, contraste CEN y operación BESS</h2>
+            <span>Planta FV + BESS | Caso 2025</span>
           </div>
           <div class="report-export-actions pdf-hide">
             <button id="exportReportPdfBtn" class="report-export-btn" type="button">
@@ -1740,8 +1688,8 @@
           </header>
 
           <section class="pdf-section report-title-section">
-            <h1>Reporte de resultados — Modelación Planta FV y contraste CEN</h1>
-            <span>Modelación energética FV, comparación meteorológica SAM y referencia operacional CEN 2025.</span>
+            <h1>Reporte Técnico — Modelación FV, contraste CEN y operación BESS</h1>
+            <span>Planta FV + BESS | Caso 2025</span>
           </section>
 
           <section class="pdf-section">

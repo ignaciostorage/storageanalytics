@@ -1,0 +1,121 @@
+{
+  "metadata": {
+    "schema_version": "1.0",
+    "scenario_id": "A",
+    "scenario_name": "Recuperación energética prioritaria",
+    "year": 2025,
+    "resolution": "hourly",
+    "hours": 8760,
+    "source_file": "Serie Horaria CEN_SEN_2025.xlsx",
+    "source_bus": "MIRAJE_220",
+    "price_used_for_dispatch": false,
+    "charge_source": "curtailment_CEN_only",
+    "generated_at": "2026-08-22T17:26:15.343645-04:00"
+  },
+  "parameters": {
+    "E_nom_MWh": 1334.0,
+    "P_c_max_MW": 306.3,
+    "P_d_max_MW": 306.3,
+    "eta_rt": 0.895,
+    "SOC_min": 0.1,
+    "SOC_max": 0.9,
+    "SOC_0": 0.5,
+    "P_POI_max_MW": 380.0,
+    "dt_h": 1.0,
+    "eta_c": 0.9460443964212251,
+    "eta_d": 0.9460443964212251,
+    "E_min_MWh": 133.4,
+    "E_max_MWh": 1200.6000000000001,
+    "E_0_MWh": 667.0
+  },
+  "kpis": {
+    "horas_simuladas": 8760,
+    "E_curt_total_MWh": 259127.20983333333,
+    "E_capturada_MWh": 245105.6484205174,
+    "tasa_captura_pct": 94.588927414518,
+    "E_descargada_MWh": 219874.36462629345,
+    "E_no_capturada_MWh": 14021.561412815938,
+    "throughput_AC_MWh": 464980.01304681087,
+    "EFC_desc": 164.82336178882568,
+    "perdidas_carga_MWh": 13224.82320109602,
+    "perdidas_descarga_MWh": 12540.060593127933,
+    "perdidas_totales_MWh": 25764.883794223955,
+    "SOC_inicial_pct": 50.0,
+    "SOC_final_pct": 10.0,
+    "E_inicial_MWh": 667.0,
+    "E_final_MWh": 133.4,
+    "PM_prom_USD_MWh": 49.92065182648402,
+    "PM_desc_ponderado_USD_MWh": 69.39828830261439,
+    "Ingreso_bruto_USD": 15258904.54668967,
+    "valor_residual_USD": -25200.40880138841,
+    "Ingreso_ajustado_USD": 15233704.137888283,
+    "horas_curtailment": 3239,
+    "horas_carga": 3167,
+    "horas_descarga": 981,
+    "horas_PFV_supera_POI": 4,
+    "horas_limitado_POI_descarga": 92,
+    "P_FV_max_MW": 382.0,
+    "P_curt_max_MW": 380.0,
+    "P_c_max_observada_MW": 306.3,
+    "P_d_max_observada_MW": 306.3,
+    "SOC_min_observado_pct": 10.0,
+    "SOC_max_observado_pct": 90.00000000000001
+  },
+  "verification": {
+    "aprobado": true,
+    "checks": {
+      "filas_8760": true,
+      "sin_carga_descarga_simultanea": true,
+      "respeta_P_c_max": true,
+      "respeta_P_d_max": true,
+      "respeta_SOC_min": true,
+      "respeta_SOC_max": true,
+      "carga_no_supera_curtailment": true,
+      "descarga_respeta_POI_modelado": true,
+      "balance_energetico_cierra": true,
+      "identidad_CEN_disponible_cierra": true
+    },
+    "conteos_violaciones": {
+      "carga_descarga_simultanea": 0,
+      "P_c_max": 0,
+      "P_d_max": 0,
+      "SOC_min": 0,
+      "SOC_max": 0,
+      "carga_mayor_curtailment": 0,
+      "POI_modelado": 0
+    },
+    "residuo_balance_max_abs_MWh": 1.1368683772161603e-13,
+    "residuo_identidad_CEN_max_abs_MWh": 2.842170943040401e-14,
+    "horas_PFV_supera_380_MW": 4,
+    "P_FV_max_MW": 382.0,
+    "excedencias_PFV_sobre_POI": [
+      {
+        "timestamp": "2025-01-27T12:00:00",
+        "P_FV_MW": 382.0,
+        "P_margen_POI_MW": 0.0
+      },
+      {
+        "timestamp": "2025-01-29T12:00:00",
+        "P_FV_MW": 381.0,
+        "P_margen_POI_MW": 0.0
+      },
+      {
+        "timestamp": "2025-02-13T13:00:00",
+        "P_FV_MW": 382.0,
+        "P_margen_POI_MW": 0.0
+      },
+      {
+        "timestamp": "2025-10-09T12:00:00",
+        "P_FV_MW": 381.0,
+        "P_margen_POI_MW": 0.0
+      }
+    ]
+  },
+  "units": {
+    "power": "MW",
+    "energy": "MWh",
+    "soc": "%",
+    "price": "USD/MWh",
+    "money": "USD"
+  }
+}

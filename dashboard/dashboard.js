@@ -4,9 +4,44 @@ let indiceActual = 0;
 let intervalo = null;
 let charts = {};
 let chartsReady = false;
+let bessCharts = {};
+let bessSelectedDate = null;
 
 const $ = (id) => document.getElementById(id);
-const strategySelectValue = () => window.currentStrategyFile || "estrategia_A.json";
+const SUPPORTED_SCENARIO_SCHEMA_VERSION = "1.0";
+const SCENARIO_DATA = {
+  A: {
+    id: "A",
+    label: "Escenario A",
+    name: "Recuperación energética prioritaria",
+    status: "Simulación verificada",
+    available: true,
+    manifest: "data/dashboard_A_manifest.json",
+    kpis: "data/dashboard_A_kpis.json",
+    hourly: "data/dashboard_A_horario.json",
+    monthly: "data/dashboard_A_mensual.json",
+    quarterly: "data/dashboard_A_trimestral.json",
+  },
+  B: { id: "B", label: "Escenario B", name: "Valorización económica", status: "Pendiente", available: false },
+  C: { id: "C", label: "Escenario C", name: "Híbrida", status: "Pendiente", available: false },
+  D: { id: "D", label: "Escenario D", name: "Degradation-aware", status: "Pendiente", available: false },
+  M: { id: "M", label: "Benchmark M", name: "Benchmark MILP", status: "Pendiente", available: false },
+};
+const SCENARIO_ORDER = ["A", "B", "C", "D", "M"];
+const scenarioState = {
+  active: "A",
+  cache: {},
+  loading: {},
+  errors: {},
+};
+const strategySelectValue = () => scenarioState.active || "A";
+const SCENARIO_REQUIRED_FIELDS = {
+  hourly: ["timestamp", "P_FV_MW", "P_curt_MW", "PM_USD_MWh", "P_c_MW", "P_d_MW", "E_fin_MWh", "SOC_fin_pct", "E_capt_MWh", "E_desc_MWh", "E_no_capt_MWh", "Ingreso_USD"],
+  monthly: ["periodo", "E_curt_MWh", "E_capt_MWh", "tasa_captura_pct", "E_desc_MWh", "E_no_capt_MWh", "throughput_AC_MWh", "EFC_desc", "Ingreso_bruto_USD"],
+  quarterly: ["periodo", "E_curt_MWh", "E_capt_MWh", "tasa_captura_pct", "E_desc_MWh", "throughput_AC_MWh", "EFC_desc", "Ingreso_bruto_USD"],
+  kpis: ["E_curt_total_MWh", "E_capturada_MWh", "tasa_captura_pct", "E_descargada_MWh", "E_no_capturada_MWh", "throughput_AC_MWh", "EFC_desc", "Ingreso_bruto_USD", "Ingreso_ajustado_USD", "SOC_final_pct"],
+  parameters: ["E_nom_MWh", "P_c_max_MW", "P_d_max_MW", "eta_rt", "SOC_min", "SOC_max", "SOC_0", "P_POI_max_MW", "dt_h", "eta_c", "eta_d"],
+};
 const SCADA_HOURLY_URL = "data/sam_tmy_nasa_vs_cen_horario_scada_lite.json";
 const SCADA_DATA_NOTE = "Los valores FV provienen de SAM; Generación real CEN, Reducciones CEN (curtailment) y precio marginal horario provienen de CEN/SEN 2025. CEN disponible = Generación real CEN + Reducciones CEN. Pronóstico centralizado CEN: 8736 h disponibles; faltan 24 h del 31-07-2025, sin imputación.";
 const DEBUG_SCADA = true;
@@ -32,7 +67,9 @@ const SCADA_FIELD_CANDIDATES = {
 window.addEventListener("DOMContentLoaded", () => {
   buildCharts();
   bindEvents();
-  updateStrategyLabel("estrategia_A.json");
+  updateStrategyLabel("A");
+  renderScenarioSelector();
+  preloadBessScenarioA();
   cargarDatosScadaHorario();
   cargarComparador();
   preloadDashboardJsons();
@@ -73,6 +110,129 @@ async function loadJsonWithFallback(primaryPath, fallbackPath = null) {
     return dataFallback;
   }
 }
+
+function escapeHtmlText(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function validateScenarioMetadata(payload, label) {
+  const metadata = payload?.metadata;
+  if (!metadata || typeof metadata !== "object") {
+    throw new Error(`${label}: metadata no disponible`);
+  }
+  if (metadata.schema_version !== SUPPORTED_SCENARIO_SCHEMA_VERSION) {
+    throw new Error(`${label}: schema_version no soportada (${metadata.schema_version || "sin version"})`);
+  }
+}
+
+function validateRequiredFields(row, fields, label) {
+  const missing = fields.filter((field) => !Object.prototype.hasOwnProperty.call(row || {}, field));
+  if (missing.length) {
+    throw new Error(`${label}: faltan campos requeridos (${missing.join(", ")})`);
+  }
+}
+
+function validateScenarioRecords(payload, label, requiredFields) {
+  validateScenarioMetadata(payload, label);
+  if (!Array.isArray(payload.records) || !payload.records.length) {
+    throw new Error(`${label}: records vacio o ausente`);
+  }
+  validateRequiredFields(payload.records[0], requiredFields, label);
+}
+
+function validateScenarioKpis(payload, label) {
+  validateScenarioMetadata(payload, label);
+  if (!payload.kpis || typeof payload.kpis !== "object") {
+    throw new Error(`${label}: kpis no disponible`);
+  }
+  if (!payload.parameters || typeof payload.parameters !== "object") {
+    throw new Error(`${label}: parameters no disponible`);
+  }
+  if (!payload.verification || typeof payload.verification !== "object") {
+    throw new Error(`${label}: verification no disponible`);
+  }
+  validateRequiredFields(payload.kpis, SCENARIO_REQUIRED_FIELDS.kpis, `${label}.kpis`);
+  validateRequiredFields(payload.parameters, SCENARIO_REQUIRED_FIELDS.parameters, `${label}.parameters`);
+}
+
+function buildScenarioIndexes(hourlyRecords) {
+  const byTimestamp = new Map();
+  const byDate = new Map();
+  (Array.isArray(hourlyRecords) ? hourlyRecords : []).forEach((row) => {
+    const timestamp = normalizeTimestamp(row.timestamp);
+    const date = normalizeDate(row.timestamp);
+    if (timestamp) byTimestamp.set(timestamp, row);
+    if (date) {
+      if (!byDate.has(date)) byDate.set(date, []);
+      byDate.get(date).push(row);
+    }
+  });
+  byDate.forEach((rows) => rows.sort((a, b) => getTimestampTime(a.timestamp) - getTimestampTime(b.timestamp)));
+  return { byTimestamp, byDate };
+}
+
+async function getScenarioData(id = "A") {
+  const scenarioId = String(id || "A").toUpperCase();
+  const config = SCENARIO_DATA[scenarioId];
+  if (!config) throw new Error(`Escenario no configurado: ${scenarioId}`);
+  if (!config.available) throw new Error(`${config.label} pendiente: no existen JSON oficiales cargados`);
+  if (scenarioState.cache[scenarioId]) return scenarioState.cache[scenarioId];
+  if (scenarioState.loading[scenarioId]) return scenarioState.loading[scenarioId];
+
+  scenarioState.loading[scenarioId] = Promise.all([
+    loadJsonWithFallback(config.manifest),
+    loadJsonWithFallback(config.kpis),
+    loadJsonWithFallback(config.hourly),
+    loadJsonWithFallback(config.monthly),
+    loadJsonWithFallback(config.quarterly),
+  ]).then(([manifest, kpis, hourly, monthly, quarterly]) => {
+    validateScenarioMetadata(manifest, `${config.label}.manifest`);
+    validateScenarioKpis(kpis, `${config.label}.kpis`);
+    validateScenarioRecords(hourly, `${config.label}.hourly`, SCENARIO_REQUIRED_FIELDS.hourly);
+    validateScenarioRecords(monthly, `${config.label}.monthly`, SCENARIO_REQUIRED_FIELDS.monthly);
+    validateScenarioRecords(quarterly, `${config.label}.quarterly`, SCENARIO_REQUIRED_FIELDS.quarterly);
+
+    const indexes = buildScenarioIndexes(hourly.records);
+    const bundle = { config, manifest, kpis, hourly, monthly, quarterly, indexes };
+    scenarioState.cache[scenarioId] = bundle;
+    delete scenarioState.errors[scenarioId];
+    console.log(`[Storage Analytics] ${config.label} cargado correctamente`, {
+      hourly: hourly.records.length,
+      monthly: monthly.records.length,
+      quarterly: quarterly.records.length,
+      verification: kpis.verification,
+    });
+    return bundle;
+  }).catch((error) => {
+    scenarioState.errors[scenarioId] = error;
+    console.error(`[Storage Analytics] Error cargando ${config.label}`, error);
+    throw error;
+  }).finally(() => {
+    delete scenarioState.loading[scenarioId];
+  });
+
+  return scenarioState.loading[scenarioId];
+}
+
+async function preloadBessScenarioA() {
+  try {
+    await getScenarioData("A");
+    updateStrategyLabel("A");
+    renderTableForScenarioA();
+    update();
+  } catch (error) {
+    renderTableForScenarioA(error);
+    updateBessGeneralUnavailable(error);
+  }
+}
+
+window.SCENARIO_DATA = SCENARIO_DATA;
+window.getScenarioData = getScenarioData;
 
 function pick(obj, keys, fallback = null) {
   for (const key of keys) {
@@ -150,9 +310,8 @@ function bindEvents(){
   $("dateInput").addEventListener("change", () => updateScadaDay(true));
   $("samCaseSelect").addEventListener("change", () => updateScadaDay(true));
   $("changeStrategyBtn").addEventListener("click", () => {
-    const next = strategySelectValue() === "estrategia_A.json" ? "estrategia_B.json" : strategySelectValue() === "estrategia_B.json" ? "estrategia_C.json" : "estrategia_A.json";
-    window.currentStrategyFile = next;
-    updateStrategyLabel(next);
+    const panel = $("scenarioSelectorPanel");
+    if (panel) panel.hidden = !panel.hidden;
   });
 }
 
@@ -424,14 +583,37 @@ function setScadaDataNote(message, isError = false){
   note.classList.toggle("error", isError);
 }
 
-function updateStrategyLabel(file){
-  const names = {
-    "estrategia_A.json":"Beneficio Neto",
-    "estrategia_B.json":"Umbral de Precio",
-    "estrategia_C.json":"SOC Conservador"
-  };
-  $("strategyName").innerHTML = `<span class="badge-dot"></span> ${names[file] || "Sin datos"}`;
-  $("strategyDescription").textContent = "Módulo BESS en desarrollo. Las estrategias se mantienen como simulación preliminar sin verificación final.";
+function updateStrategyLabel(id = "A"){
+  const scenario = SCENARIO_DATA[id] || SCENARIO_DATA.A;
+  scenarioState.active = scenario.id;
+  const verified = scenarioState.cache[scenario.id]?.kpis?.verification?.aprobado === true;
+  const stateText = scenario.available
+    ? (verified ? "Simulación verificada" : scenario.status)
+    : scenario.status;
+  if ($("strategyName")) $("strategyName").innerHTML = `<span class="badge-dot"></span> ${escapeHtmlText(scenario.label)}`;
+  if ($("strategyDescription")) $("strategyDescription").innerHTML = `${escapeHtmlText(scenario.name)}<br><br>Estado:<br>${escapeHtmlText(stateText)}`;
+  if ($("changeStrategyBtn")) $("changeStrategyBtn").textContent = "Otros escenarios pendientes";
+}
+
+function renderScenarioSelector(){
+  const panel = $("scenarioSelectorPanel");
+  if (!panel) return;
+  panel.innerHTML = SCENARIO_ORDER.map((id) => {
+    const item = SCENARIO_DATA[id];
+    const pending = !item.available;
+    return `
+      <button class="scenario-option ${pending ? "pending" : "available"}" type="button" ${pending ? "disabled" : ""} data-scenario="${escapeHtmlText(id)}">
+        <strong>${escapeHtmlText(item.label)}${id === "A" ? " - Disponible" : " - Pendiente"}</strong>
+        <span>${escapeHtmlText(item.name)}</span>
+      </button>
+    `;
+  }).join("");
+  panel.querySelectorAll(".scenario-option.available").forEach((button) => {
+    button.addEventListener("click", () => {
+      updateStrategyLabel(button.dataset.scenario || "A");
+      panel.hidden = true;
+    });
+  });
 }
 
 function play(){
@@ -457,10 +639,11 @@ function update(){
   set("simHour", hh); set("simDate", dd); set("sliderBubble", hh);
   set("ghi", n(d.meteo_ghi_wm2 ?? d.ghi)); set("fv", n(d.sam_p_ac_mw ?? d.fv,1)); set("curtailment", n(d.reducciones_cen_mwh,1)); set("inyeccion", n(d.generacion_real_cen_mwh,1));
   set("carga", n(d.cen_disponible_mwh,1)); set("descarga", n(d.residuo_sam_menos_cen_disponible_mwh,1)); set("soc", "N/D"); set("socUnit", "B2"); set("pmg", n(d.precio_spot_usd_mwh,1));
-  set("socLarge", "Sin datos"); set("energiaAlmacenada", "En desarrollo");
-  set("energiaNominal", "No disponibles"); set("pMaxCarga", "No disponible"); set("pMaxDescarga", "No disponible"); set("eficiencia", "No disponible");
-  set("temperatura", "No disponible"); set("soh", "No disponible"); set("sohActual", "No disponible"); set("efc", "No disponible");
-  set("perdidaCapacidad", "No disponible"); set("costoDeg2", "No calculado"); set("beneficio", "Módulo en desarrollo");
+  set("socLarge", "Cargando"); set("energiaAlmacenada", "Cargando...");
+  set("energiaNominal", "Cargando..."); set("pMaxCarga", "Cargando..."); set("pMaxDescarga", "Cargando..."); set("eficiencia", "Cargando...");
+  set("temperatura", "Pendiente modelo de degradación"); set("soh", "Pendiente Bloque 3"); set("sohActual", "Pendiente Bloque 3"); set("efc", "Cargando...");
+  set("perdidaCapacidad", "Pendiente Bloque 3"); set("costoDeg2", "Pendiente Bloque 3/4"); set("beneficio", "Ingreso observado ex post; el precio no interviene en la decisión del Escenario A.");
+  updateBessGeneralState(d);
 
   set("ghiSub", `Máx. día: ${n(max(dayRows,"meteo_ghi_wm2"))} W/m²`);
   set("fvSub", `Máx. día: ${n(max(dayRows,"sam_p_ac_mw"),1)} MW`);
@@ -478,8 +661,137 @@ function update(){
   set("valorCurtDia", `USD ${money(sum(dayRows,"valor_curtailment_usd"))}`);
   set("curtRecDia", `${n(sum(dayRows,"residuo_sam_menos_cen_disponible_mwh"),1)} MWh`);
 
-  if($("batteryFill")) $("batteryFill").style.height = "0%";
   updateCharts(dayRows, rowsUntil);
+}
+
+function formatNumberEs(value, decimals = 1) {
+  const number = toNumberOrNull(value);
+  if (number === null) return "--";
+  return number.toLocaleString("es-CL", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function formatPercentFromRatio(value, decimals = 1) {
+  const number = toNumberOrNull(value);
+  if (number === null) return "--";
+  const pctValue = Math.abs(number) <= 1.5 ? number * 100 : number;
+  return `${formatNumberEs(pctValue, decimals)} %`;
+}
+
+function formatMwh(value, decimals = 1) {
+  const number = toNumberOrNull(value);
+  if (number === null) return "-- MWh";
+  return `${formatNumberEs(number, decimals)} MWh`;
+}
+
+function formatGwh(value, decimals = 2) {
+  const number = toNumberOrNull(value);
+  if (number === null) return "-- GWh";
+  return `${formatNumberEs(number / 1000, decimals)} GWh`;
+}
+
+function formatEnergyAuto(value, decimals = 2) {
+  const number = toNumberOrNull(value);
+  if (number === null) return "--";
+  return Math.abs(number) >= 10000 ? formatGwh(number, decimals) : formatMwh(number, 1);
+}
+
+function formatUsd(value, decimals = 0) {
+  const number = toNumberOrNull(value);
+  if (number === null) return "USD --";
+  return `USD ${number.toLocaleString("es-CL", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+}
+
+function formatUsdMillion(value, decimals = 2) {
+  const number = toNumberOrNull(value);
+  if (number === null) return "USD -- millones";
+  return `USD ${formatNumberEs(number / 1000000, decimals)} millones`;
+}
+
+function getActiveScenarioBundle() {
+  return scenarioState.cache[strategySelectValue()] || scenarioState.cache.A || null;
+}
+
+function getBessRowForTimestamp(timestamp) {
+  const bundle = getActiveScenarioBundle();
+  const normalized = normalizeTimestamp(timestamp);
+  return bundle?.indexes?.byTimestamp?.get(normalized) || null;
+}
+
+function getBessRowsForDate(dateValue) {
+  const bundle = getActiveScenarioBundle();
+  const date = normalizeDate(dateValue);
+  return bundle?.indexes?.byDate?.get(date) || [];
+}
+
+function updateBessGeneralUnavailable(error = null) {
+  const message = error ? "Error JSON A" : "Cargando...";
+  set("soc", "--");
+  set("socUnit", "A");
+  set("socLarge", message);
+  set("energiaAlmacenada", error ? "No disponible" : "Cargando...");
+  set("energiaNominal", error ? "No disponible" : "Cargando...");
+  set("pMaxCarga", error ? "No disponible" : "Cargando...");
+  set("pMaxDescarga", error ? "No disponible" : "Cargando...");
+  set("eficiencia", error ? "No disponible" : "Cargando...");
+  set("bessEtasGeneral", error ? "No disponible" : "Cargando...");
+  set("temperatura", "Pendiente modelo de degradación");
+  set("soh", "Pendiente Bloque 3");
+  set("sohActual", "Pendiente Bloque 3");
+  set("efc", error ? "No disponible" : "Cargando...");
+  set("perdidaCapacidad", "Pendiente Bloque 3");
+  set("costoDeg2", "Pendiente Bloque 3/4");
+  set("beneficio", error ? "No se pudo cargar Escenario A" : "Ingreso observado ex post; el precio no interviene en la decisión del Escenario A.");
+  set("bessCaptDia", "-- MWh");
+  set("bessDescDia", "-- MWh");
+  set("bessNoCaptDia", "-- MWh");
+  set("bessIngresoDia", "USD --");
+  set("bessSocFinalDia", "-- %");
+  if ($("batteryFill")) $("batteryFill").style.height = "0%";
+}
+
+function updateBessGeneralState(scadaRow) {
+  const bundle = getActiveScenarioBundle();
+  if (!bundle) {
+    updateBessGeneralUnavailable(scenarioState.errors.A || null);
+    return;
+  }
+
+  const params = bundle.kpis.parameters || {};
+  const kpis = bundle.kpis.kpis || {};
+  const timestamp = scadaRow?.datetime || scadaRow?.timestamp;
+  const row = getBessRowForTimestamp(timestamp);
+  const dateRows = getBessRowsForDate(timestamp);
+  const lastRow = dateRows[dateRows.length - 1] || null;
+  const soc = toNumberOrNull(row?.SOC_fin_pct);
+
+  set("bessScenarioGeneral", "A - Recuperación energética prioritaria");
+  set("soc", soc === null ? "--" : formatNumberEs(soc, 1));
+  set("socUnit", "%");
+  set("socLarge", soc === null ? "Sin dato" : `${formatNumberEs(soc, 1)}%`);
+  set("energiaAlmacenada", row ? formatMwh(row.E_fin_MWh, 1) : "Sin registro horario");
+  set("energiaNominal", row ? `${formatNumberEs(row.P_c_MW, 1)} MW / ${formatNumberEs(row.P_d_MW, 1)} MW` : "Sin registro horario");
+  set("pMaxCarga", `${formatNumberEs(params.P_c_max_MW, 1)} MW`);
+  set("pMaxDescarga", `${formatNumberEs(params.P_d_max_MW, 1)} MW`);
+  set("eficiencia", formatPercentFromRatio(params.eta_rt, 1));
+  set("bessEtasGeneral", `${formatPercentFromRatio(params.eta_c, 2)} / ${formatPercentFromRatio(params.eta_d, 2)}`);
+  set("temperatura", "Pendiente modelo de degradación");
+  set("soh", "Pendiente Bloque 3");
+  set("sohActual", "Pendiente Bloque 3");
+  set("efc", `${formatNumberEs(kpis.EFC_desc, 2)} EFC`);
+  set("perdidaCapacidad", "Pendiente Bloque 3");
+  set("costoDeg2", "Pendiente Bloque 3/4");
+  set("beneficio", "Ingreso observado ex post; el precio no interviene en la decisión del Escenario A.");
+
+  set("bessCaptDia", formatMwh(sum(dateRows, "E_capt_MWh"), 1));
+  set("bessDescDia", formatMwh(sum(dateRows, "E_desc_MWh"), 1));
+  set("bessNoCaptDia", formatMwh(sum(dateRows, "E_no_capt_MWh"), 1));
+  set("bessIngresoDia", formatUsd(sum(dateRows, "Ingreso_USD"), 0));
+  set("bessSocFinalDia", lastRow ? `${formatNumberEs(lastRow.SOC_fin_pct, 1)} %` : "-- %");
+
+  if ($("batteryFill")) {
+    const bounded = Math.max(0, Math.min(100, soc ?? 0));
+    $("batteryFill").style.height = `${bounded}%`;
+  }
 }
 
 function updateCharts(dayRows, rowsUntil){
@@ -594,18 +906,56 @@ function setChart(chart, labels, arrays){
 }
 
 async function cargarComparador(){
-  renderTable([]);
+  renderTableForScenarioA();
 }
-function renderTable(rows){
-  if(!Array.isArray(rows) || !rows.length){
-    $("strategyTable").innerHTML = `<tr><td colspan="9">Módulo BESS en desarrollo: no hay JSON oficial de operación BESS.</td></tr>`;
-    set("recommendedStrategy", "Sin datos BESS oficiales");
-    set("recommendationText", "La operación BESS queda marcada como módulo en desarrollo hasta incorporar resultados oficiales.");
-    return;
+function renderTableForScenarioA(error = null){
+  const tableBody = $("strategyTable");
+  if (!tableBody) return;
+  const bundle = scenarioState.cache.A;
+  const pendingCell = `<td class="muted-cell">Pendiente</td>`;
+  const futureCells = `${pendingCell}${pendingCell}${pendingCell}${pendingCell}`;
+  const rows = [];
+
+  if (bundle && !error) {
+    const k = bundle.kpis.kpis || {};
+    rows.push(`
+      <tr class="highlight">
+        <td><b>Escenario A</b><br><small>Recuperación energética prioritaria</small></td>
+        <td>Disponible / Verificado</td>
+        <td>${formatEnergyAuto(k.E_capturada_MWh)}</td>
+        <td>${formatNumberEs(k.tasa_captura_pct, 2)} %</td>
+        <td>${formatEnergyAuto(k.E_descargada_MWh)}</td>
+        <td>${formatUsdMillion(k.Ingreso_bruto_USD, 2)}</td>
+        <td>${formatUsdMillion(k.Ingreso_ajustado_USD, 2)}</td>
+        <td>${formatNumberEs(k.EFC_desc, 2)}</td>
+        <td>${formatEnergyAuto(k.throughput_AC_MWh)}</td>
+        ${futureCells}
+      </tr>
+    `);
+  } else {
+    rows.push(`
+      <tr>
+        <td><b>Escenario A</b><br><small>Recuperación energética prioritaria</small></td>
+        <td>${error ? `Error: ${escapeHtmlText(error.message || error)}` : "Cargando JSON oficiales"}</td>
+        <td colspan="11">Sin sustitución por valores hardcodeados.</td>
+      </tr>
+    `);
   }
-  $("strategyTable").innerHTML = rows.map(r => `<tr class="${r.highlight?'highlight':''}"><td>${r.highlight?'★ ':''}${r.estrategia}</td><td>${money(r.ingreso)}</td><td>${money(r.costo)}</td><td>${money(r.neto)}</td><td>${n(r.soh,1)}</td><td>${n(r.efc,1)}</td><td>${money(r.curtailment)}</td><td>${n(r.usd_mwh,1)}</td><td>${money(r.usd_soh)}</td></tr>`).join("");
-  const best = rows.slice().sort((a,b)=>(b.neto||0)-(a.neto||0))[0];
-  if(best){ set("recommendedStrategy", best.estrategia); set("recommendationText", "La estrategia seleccionada maximiza el beneficio neto considerando ingresos y degradación del BESS."); }
+
+  ["B", "C", "D", "M"].forEach((id) => {
+    const scenario = SCENARIO_DATA[id];
+    rows.push(`
+      <tr>
+        <td><b>${escapeHtmlText(scenario.label)}</b><br><small>${escapeHtmlText(scenario.name)}</small></td>
+        <td>PENDIENTE</td>
+        <td colspan="11">Sin JSON oficial disponible. No se simula ni se inventan valores.</td>
+      </tr>
+    `);
+  });
+
+  tableBody.innerHTML = rows.join("");
+  set("recommendedStrategy", "Pendiente");
+  set("recommendationText", "Comparación no disponible todavía. El Escenario A constituye la línea base de recuperación energética. La recomendación final requiere los Escenarios B, C, D, Benchmark M y el modelo de degradación.");
 }
 
 function getCurrentDayRows(dt){ const day = (dt||"").slice(0,10); return datos.filter(x => (x.datetime||"").slice(0,10)===day); }
@@ -618,6 +968,444 @@ function money(v){ const value = toNumberOrNull(v); if(value === null) return "-
 function sum(rows,k){ return rows.reduce((a,b)=>{ const value = toNumberOrNull(b[k]); return value === null ? a : a + value; },0); }
 function max(rows,k){ return rows.reduce((m,b)=>{ const value = toNumberOrNull(b[k]); return value === null ? m : Math.max(m,value); },0); }
 function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
+
+function destroyBessCharts(keys = null) {
+  const targetKeys = Array.isArray(keys) ? keys : Object.keys(bessCharts);
+  targetKeys.forEach((key) => {
+    const chart = bessCharts[key];
+    if (chart && typeof chart.destroy === "function") chart.destroy();
+    delete bessCharts[key];
+  });
+}
+
+function monthShortFromPeriod(periodo) {
+  const month = Number(String(periodo || "").slice(5, 7));
+  const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  return labels[month - 1] || String(periodo || "--");
+}
+
+function selectDefaultBessDate(bundle) {
+  if (bessSelectedDate && bundle?.indexes?.byDate?.has(bessSelectedDate)) return bessSelectedDate;
+  let bestDate = "";
+  let bestCurt = -Infinity;
+  bundle?.indexes?.byDate?.forEach((rows, date) => {
+    const dailyCurt = sum(rows, "P_curt_MW");
+    if (dailyCurt > bestCurt) {
+      bestCurt = dailyCurt;
+      bestDate = date;
+    }
+  });
+  return bestDate || normalizeDate(bundle?.hourly?.records?.[0]?.timestamp) || "2025-01-01";
+}
+
+function checkLabel(key) {
+  const labels = {
+    filas_8760: "8.760 registros",
+    sin_carga_descarga_simultanea: "Sin carga/descarga simultánea",
+    respeta_P_c_max: "Respeta P_c,max",
+    respeta_P_d_max: "Respeta P_d,max",
+    respeta_SOC_min: "Respeta SOC min",
+    respeta_SOC_max: "Respeta SOC max",
+    carga_no_supera_curtailment: "Carga <= curtailment",
+    descarga_respeta_POI_modelado: "Descarga respeta POI modelado",
+    balance_energetico_cierra: "Balance energético cerrado",
+    identidad_CEN_disponible_cierra: "Identidad CEN disponible cerrada",
+  };
+  return labels[key] || key;
+}
+
+function bessChartOptions(yTitle, extra = {}) {
+  const tickColor = "#b8cbe3";
+  const gridColor = "rgba(140, 170, 210, 0.14)";
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    animation: false,
+    plugins: {
+      legend: { labels: { color: tickColor, usePointStyle: true, boxWidth: 14 } },
+      tooltip: {
+        backgroundColor: "rgba(3, 18, 34, 0.96)",
+        titleColor: "#ffffff",
+        bodyColor: "#d7e8ff",
+        borderColor: "rgba(91, 141, 196, 0.45)",
+        borderWidth: 1,
+      },
+    },
+    scales: {
+      x: { ticks: { color: tickColor, maxTicksLimit: 10 }, grid: { color: gridColor } },
+      y: { title: { display: true, text: yTitle, color: tickColor }, ticks: { color: tickColor }, grid: { color: gridColor }, beginAtZero: true },
+    },
+    ...extra,
+  };
+}
+
+function lineDataset(label, data, color, extra = {}) {
+  return {
+    label,
+    data,
+    borderColor: color,
+    backgroundColor: `${color}22`,
+    borderWidth: 2,
+    pointRadius: 0,
+    pointHoverRadius: 3,
+    tension: 0.18,
+    fill: false,
+    ...extra,
+  };
+}
+
+function barDataset(label, data, color, extra = {}) {
+  return {
+    type: "bar",
+    label,
+    data,
+    backgroundColor: `${color}b8`,
+    borderColor: color,
+    borderWidth: 1,
+    borderRadius: 3,
+    ...extra,
+  };
+}
+
+function buildBessKpiCards(bundle) {
+  const k = bundle.kpis.kpis || {};
+  const items = [
+    ["Curtailment total", formatGwh(k.E_curt_total_MWh), "Reducciones CEN disponibles"],
+    ["Energía capturada", formatGwh(k.E_capturada_MWh), "Carga desde curtailment CEN"],
+    ["Tasa de captura", `${formatNumberEs(k.tasa_captura_pct, 2)} %`, "Curtailment capturado"],
+    ["Energía no capturada", formatGwh(k.E_no_capturada_MWh), "Restricciones horarias"],
+    ["Energía descargada", formatGwh(k.E_descargada_MWh), "Valorizada ex post"],
+    ["Throughput AC", formatGwh(k.throughput_AC_MWh), "Carga + descarga AC"],
+    ["EFC", formatNumberEs(k.EFC_desc, 2), "Por descarga"],
+    ["Pérdidas totales", formatGwh(k.perdidas_totales_MWh), "Carga + descarga"],
+    ["Ingreso bruto", formatUsdMillion(k.Ingreso_bruto_USD), "Precio ex post"],
+    ["Ingreso ajustado", formatUsdMillion(k.Ingreso_ajustado_USD), "Incluye valor residual"],
+  ];
+  return items.map(([label, value, sub]) => `
+    <article class="bess-kpi card">
+      <p>${escapeHtmlText(label)}</p>
+      <h3>${escapeHtmlText(value)}</h3>
+      <small>${escapeHtmlText(sub)}</small>
+    </article>
+  `).join("");
+}
+
+function buildBessParameterGrid(bundle) {
+  const p = bundle.kpis.parameters || {};
+  const rows = [
+    ["E_nom", `${formatNumberEs(p.E_nom_MWh, 0)} MWh`],
+    ["P_c,max", `${formatNumberEs(p.P_c_max_MW, 1)} MW`],
+    ["P_d,max", `${formatNumberEs(p.P_d_max_MW, 1)} MW`],
+    ["RTE", formatPercentFromRatio(p.eta_rt, 1)],
+    ["eta_c", formatPercentFromRatio(p.eta_c, 2)],
+    ["eta_d", formatPercentFromRatio(p.eta_d, 2)],
+    ["SOC min", formatPercentFromRatio(p.SOC_min, 1)],
+    ["SOC max", formatPercentFromRatio(p.SOC_max, 1)],
+    ["SOC inicial", formatPercentFromRatio(p.SOC_0, 1)],
+    ["P_POI,max", `${formatNumberEs(p.P_POI_max_MW, 0)} MW`],
+    ["dt", `${formatNumberEs(p.dt_h, 0)} h`],
+  ];
+  return rows.map(([label, value]) => `
+    <div class="bess-param"><span>${escapeHtmlText(label)}</span><strong>${escapeHtmlText(value)}</strong></div>
+  `).join("");
+}
+
+function buildBessMonthlyTable(bundle) {
+  const rows = bundle.monthly.records || [];
+  return rows.map((row) => `
+    <tr>
+      <td>${escapeHtmlText(monthShortFromPeriod(row.periodo))}</td>
+      <td>${formatGwh(row.E_curt_MWh)}</td>
+      <td>${formatGwh(row.E_capt_MWh)}</td>
+      <td>${formatNumberEs(row.tasa_captura_pct, 2)} %</td>
+      <td>${formatGwh(row.E_desc_MWh)}</td>
+      <td>${formatGwh(row.E_no_capt_MWh)}</td>
+      <td>${formatGwh(row.throughput_AC_MWh)}</td>
+      <td>${formatNumberEs(row.EFC_desc, 2)}</td>
+      <td>${formatUsdMillion(row.Ingreso_bruto_USD)}</td>
+    </tr>
+  `).join("");
+}
+
+function buildBessQuarterlyGrid(bundle) {
+  return (bundle.quarterly.records || []).map((row) => `
+    <div class="bess-quarter">
+      <span>${escapeHtmlText(row.periodo)}</span>
+      <strong>
+        Curtailment: ${escapeHtmlText(formatGwh(row.E_curt_MWh))}<br>
+        Capturado: ${escapeHtmlText(formatGwh(row.E_capt_MWh))} (${escapeHtmlText(formatNumberEs(row.tasa_captura_pct, 2))} %)<br>
+        Descargado: ${escapeHtmlText(formatGwh(row.E_desc_MWh))}<br>
+        Throughput: ${escapeHtmlText(formatGwh(row.throughput_AC_MWh))}<br>
+        EFC: ${escapeHtmlText(formatNumberEs(row.EFC_desc, 2))}<br>
+        Ingreso bruto: ${escapeHtmlText(formatUsdMillion(row.Ingreso_bruto_USD))}
+      </strong>
+    </div>
+  `).join("");
+}
+
+function buildBessVerificationGrid(bundle) {
+  const verification = bundle.kpis.verification || {};
+  const checks = verification.checks || {};
+  return Object.entries(checks).map(([key, ok]) => `
+    <div class="bess-check ${ok ? "ok" : "fail"}">
+      <span>${escapeHtmlText(checkLabel(key))}</span>
+      <strong>${ok ? "OK" : "Revisar"}</strong>
+    </div>
+  `).join("");
+}
+
+function buildBessViewHtml(bundle) {
+  const k = bundle.kpis.kpis || {};
+  const p = bundle.kpis.parameters || {};
+  const verification = bundle.kpis.verification || {};
+  const verified = verification.aprobado === true;
+  const defaultDate = selectDefaultBessDate(bundle);
+  bessSelectedDate = defaultDate;
+  return `
+    <div class="bess-header-grid">
+      <article class="bess-title-card card">
+        <p class="section-kicker">OPERACIÓN BESS - BLOQUE 2</p>
+        <h2>Escenario A - Recuperación energética prioritaria</h2>
+        <p>Política reactiva orientada a maximizar la disponibilidad de capacidad para recuperar reducciones CEN. La carga proviene exclusivamente de curtailment y el precio marginal no interviene en la decisión operacional.</p>
+        <span class="bess-status-badge ${verified ? "" : "error"}">${verified ? "SIMULACIÓN VERIFICADA" : "VERIFICACIÓN NO APROBADA"}</span>
+      </article>
+      <article class="bess-note-card card">
+        <h3>Alcance metodológico</h3>
+        <p>Los JSON oficiales del Escenario A son la fuente de despacho, SOC, energía, EFC, throughput e ingresos. El dashboard solo filtra, agrega y convierte unidades para visualización.</p>
+      </article>
+    </div>
+
+    <section class="bess-kpi-grid">${buildBessKpiCards(bundle)}</section>
+
+    <section class="bess-grid-two">
+      <article class="bess-panel card">
+        <h3>Parámetros del caso base</h3>
+        <div class="bess-params-grid">${buildBessParameterGrid(bundle)}</div>
+      </article>
+      <article class="bess-panel card bess-logic">
+        <h3>¿Cómo opera el Escenario A?</h3>
+        <div class="bess-flow-steps">
+          <div class="bess-flow-step">CARGAR</div>
+          <div class="bess-flow-step">VACIAR</div>
+          <div class="bess-flow-step">CREAR ESPACIO</div>
+          <div class="bess-flow-step">VOLVER A CARGAR</div>
+        </div>
+        <p>Si existe potencia de carga admisible desde reducciones CEN, el BESS carga. Cuando no existe carga admisible, descarga la máxima potencia físicamente permitida por energía disponible, potencia y margen del POI, con el objetivo de liberar espacio para futuros eventos.</p>
+      </article>
+    </section>
+
+    <section class="bess-date-bar card">
+      <label>Fecha BESS <input id="bessDateInput" type="date" value="${escapeHtmlText(defaultDate)}"></label>
+      <span class="bess-date-note">Series horarias oficiales del Escenario A - resolución 1 h.</span>
+    </section>
+
+    <section class="bess-chart-grid">
+      <article class="bess-chart-card card wide">
+        <div class="panel-head"><h3>Operación horaria BESS</h3><small>MW</small></div>
+        <div class="bess-chart-box"><canvas id="bessOperationChart"></canvas></div>
+      </article>
+      <article class="bess-chart-card card">
+        <div class="panel-head"><h3>Estado de carga</h3><small>SOC_fin_pct</small></div>
+        <div class="bess-chart-box"><canvas id="bessSocChart"></canvas></div>
+      </article>
+      <article class="bess-chart-card card">
+        <div class="panel-head"><h3>Precio marginal</h3><small>USD/MWh</small></div>
+        <div class="bess-chart-box"><canvas id="bessPriceChart"></canvas></div>
+        <p class="bess-chart-note">El precio se muestra únicamente como señal de valorización ex post; no determina el despacho del Escenario A.</p>
+      </article>
+    </section>
+
+    <section class="bess-chart-grid">
+      <article class="bess-chart-card card">
+        <div class="panel-head"><h3>Desempeño mensual</h3><small>Curtailment vs capturado</small></div>
+        <div class="bess-chart-box"><canvas id="bessMonthlyEnergyChart"></canvas></div>
+      </article>
+      <article class="bess-chart-card card">
+        <div class="panel-head"><h3>Tasa de captura mensual</h3><small>%</small></div>
+        <div class="bess-chart-box"><canvas id="bessMonthlyCaptureChart"></canvas></div>
+      </article>
+      <article class="bess-chart-card card wide">
+        <div class="panel-head"><h3>Energía no capturada mensual</h3><small>GWh</small></div>
+        <div class="bess-chart-box"><canvas id="bessMonthlyUncapturedChart"></canvas></div>
+      </article>
+    </section>
+
+    <section class="bess-table-card card">
+      <h3>Tabla mensual compacta</h3>
+      <div class="bess-table-wrap">
+        <table class="bess-table">
+          <thead>
+            <tr><th>Mes</th><th>Curtailment</th><th>Capturado</th><th>% captura</th><th>Descargado</th><th>No capturado</th><th>Throughput</th><th>EFC</th><th>Ingreso bruto</th></tr>
+          </thead>
+          <tbody>${buildBessMonthlyTable(bundle)}</tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bess-grid-two">
+      <article class="bess-panel card">
+        <h3>Energía no capturada</h3>
+        <div class="bess-energy-flow">
+          <div class="bess-energy-node"><span>CURTAILMENT CEN</span><strong>${escapeHtmlText(formatGwh(k.E_curt_total_MWh))}</strong></div>
+          <div class="bess-energy-arrow">↓</div>
+          <div class="bess-energy-node"><span>CAPTURADO</span><strong>${escapeHtmlText(formatGwh(k.E_capturada_MWh))}</strong></div>
+          <div class="bess-energy-arrow">↓</div>
+          <div class="bess-energy-node"><span>NO CAPTURADO</span><strong>${escapeHtmlText(formatGwh(k.E_no_capturada_MWh))}</strong></div>
+        </div>
+        <p class="bess-muted">La energía no capturada corresponde a la fracción que no pudo almacenarse bajo las restricciones horarias de potencia, SOC y política operacional.</p>
+      </article>
+      <article class="bess-panel card">
+        <h3>Restricción del POI</h3>
+        <p class="bess-muted">P_margen_POI = max(0, ${escapeHtmlText(formatNumberEs(p.P_POI_max_MW, 0))} MW - P_FV). Cuando la inyección histórica CEN supera el límite operacional adoptado, el margen incremental disponible para descarga del BESS se fija en cero.</p>
+        <div class="bess-poi-grid">
+          <div class="bess-poi-item"><span>P_FV máximo histórico</span><strong>${escapeHtmlText(formatNumberEs(k.P_FV_max_MW, 1))} MW</strong></div>
+          <div class="bess-poi-item"><span>Horas P_FV > 380 MW</span><strong>${escapeHtmlText(formatNumberEs(k.horas_PFV_supera_POI ?? verification.horas_PFV_supera_380_MW, 0))}</strong></div>
+          <div class="bess-poi-item"><span>Descarga limitada por POI</span><strong>${escapeHtmlText(formatNumberEs(k.horas_limitado_POI_descarga, 0))} h</strong></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="bess-table-card card">
+      <h3>Resultados trimestrales</h3>
+      <div class="bess-quarter-grid">${buildBessQuarterlyGrid(bundle)}</div>
+    </section>
+
+    <section class="bess-table-card card">
+      <h3>Verificación computacional</h3>
+      <div class="bess-verification-grid">${buildBessVerificationGrid(bundle)}</div>
+      <p class="bess-muted">Residuo máximo del balance energético: ${escapeHtmlText(formatNumberEs(verification.residuo_balance_max_abs_MWh, 14))} MWh. Residuo identidad CEN disponible: ${escapeHtmlText(formatNumberEs(verification.residuo_identidad_CEN_max_abs_MWh, 14))} MWh.</p>
+    </section>
+
+    <section class="bess-panel card">
+      <h3>Limitación metodológica horaria</h3>
+      <p>La simulación utiliza resolución horaria y un único modo operativo por intervalo. Por tanto, no representa secuencias intrahorarias de descarga y carga dentro de una misma hora.</p>
+    </section>
+  `;
+}
+
+function renderBessDailyCharts(bundle, dateValue) {
+  const rows = getBessRowsForDate(dateValue);
+  const labels = rows.map((row) => hourLabel(row.timestamp));
+  const green = "#76ff45";
+  const cyan = "#31b7ff";
+  const orange = "#ff8a00";
+  const yellow = "#ffd21f";
+  const purple = "#b46cff";
+  const blue = "#2689ff";
+  destroyBessCharts(["operation", "soc", "price"]);
+  if (typeof Chart === "undefined") {
+    console.error("Chart.js no esta cargado; no se pueden renderizar graficos BESS.");
+    return;
+  }
+
+  const operationCanvas = $("bessOperationChart");
+  if (operationCanvas) {
+    bessCharts.operation = new Chart(operationCanvas, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          lineDataset("P_FV_MW", rows.map((r) => toNumberOrNull(r.P_FV_MW) ?? 0), green, { borderWidth: 2.4 }),
+          barDataset("P_curt_MW", rows.map((r) => toNumberOrNull(r.P_curt_MW) ?? 0), orange),
+          lineDataset("P_c_MW", rows.map((r) => toNumberOrNull(r.P_c_MW) ?? 0), cyan, { borderDash: [6, 4], borderWidth: 2.5 }),
+          lineDataset("P_d_MW", rows.map((r) => toNumberOrNull(r.P_d_MW) ?? 0), yellow, { borderWidth: 2.8 }),
+        ],
+      },
+      options: bessChartOptions("MW"),
+    });
+  }
+
+  const socCanvas = $("bessSocChart");
+  if (socCanvas) {
+    bessCharts.soc = new Chart(socCanvas, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          lineDataset("SOC_fin_pct", rows.map((r) => toNumberOrNull(r.SOC_fin_pct) ?? 0), blue, { borderWidth: 2.8 }),
+          lineDataset("SOC min 10%", rows.map(() => 10), "#e83f52", { borderDash: [5, 5], pointRadius: 0 }),
+          lineDataset("SOC max 90%", rows.map(() => 90), "#e83f52", { borderDash: [5, 5], pointRadius: 0 }),
+        ],
+      },
+      options: bessChartOptions("%", { scales: { x: { ticks: { color: "#b8cbe3", maxTicksLimit: 10 }, grid: { color: "rgba(140, 170, 210, 0.14)" } }, y: { min: 0, max: 100, title: { display: true, text: "%", color: "#b8cbe3" }, ticks: { color: "#b8cbe3" }, grid: { color: "rgba(140, 170, 210, 0.14)" } } } }),
+    });
+  }
+
+  const priceCanvas = $("bessPriceChart");
+  if (priceCanvas) {
+    bessCharts.price = new Chart(priceCanvas, {
+      type: "line",
+      data: { labels, datasets: [lineDataset("PM_USD_MWh", rows.map((r) => toNumberOrNull(r.PM_USD_MWh) ?? 0), purple, { borderWidth: 2.5 })] },
+      options: bessChartOptions("USD/MWh"),
+    });
+  }
+}
+
+function renderBessMonthlyCharts(bundle) {
+  if (typeof Chart === "undefined") return;
+  destroyBessCharts(["monthlyEnergy", "monthlyCapture", "monthlyUncaptured"]);
+  const rows = bundle.monthly.records || [];
+  const labels = rows.map((row) => monthShortFromPeriod(row.periodo));
+  const toGwh = (value) => (toNumberOrNull(value) ?? 0) / 1000;
+  const energyCanvas = $("bessMonthlyEnergyChart");
+  if (energyCanvas) {
+    bessCharts.monthlyEnergy = new Chart(energyCanvas, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          barDataset("E_curt_MWh", rows.map((r) => toGwh(r.E_curt_MWh)), "#ff8a00"),
+          barDataset("E_capt_MWh", rows.map((r) => toGwh(r.E_capt_MWh)), "#76ff45"),
+        ],
+      },
+      options: bessChartOptions("GWh"),
+    });
+  }
+  const captureCanvas = $("bessMonthlyCaptureChart");
+  if (captureCanvas) {
+    bessCharts.monthlyCapture = new Chart(captureCanvas, {
+      type: "line",
+      data: { labels, datasets: [lineDataset("Tasa de captura", rows.map((r) => toNumberOrNull(r.tasa_captura_pct) ?? 0), "#31b7ff", { borderWidth: 3 })] },
+      options: bessChartOptions("%", { scales: { x: { ticks: { color: "#b8cbe3" }, grid: { color: "rgba(140, 170, 210, 0.14)" } }, y: { min: 0, max: 105, title: { display: true, text: "%", color: "#b8cbe3" }, ticks: { color: "#b8cbe3" }, grid: { color: "rgba(140, 170, 210, 0.14)" } } } }),
+    });
+  }
+  const uncapturedCanvas = $("bessMonthlyUncapturedChart");
+  if (uncapturedCanvas) {
+    bessCharts.monthlyUncaptured = new Chart(uncapturedCanvas, {
+      type: "bar",
+      data: { labels, datasets: [barDataset("E_no_capt_MWh", rows.map((r) => toGwh(r.E_no_capt_MWh)), "#e83f52")] },
+      options: bessChartOptions("GWh"),
+    });
+  }
+}
+
+async function renderBessView() {
+  const host = $("bessScenarioHost");
+  if (!host) return;
+  destroyBessCharts();
+  host.innerHTML = `<div class="bess-loading card">Cargando Escenario A BESS desde JSON oficiales...</div>`;
+  try {
+    const bundle = await getScenarioData("A");
+    host.innerHTML = buildBessViewHtml(bundle);
+    const input = $("bessDateInput");
+    if (input) {
+      input.addEventListener("change", () => {
+        bessSelectedDate = normalizeDate(input.value);
+        renderBessDailyCharts(bundle, bessSelectedDate);
+      });
+      bessSelectedDate = normalizeDate(input.value);
+    }
+    renderBessDailyCharts(bundle, bessSelectedDate);
+    renderBessMonthlyCharts(bundle);
+  } catch (error) {
+    console.error("No se pudo renderizar Operación BESS:", error);
+    host.innerHTML = `<div class="bess-error card"><strong>No se pudo cargar Escenario A BESS.</strong><br>${escapeHtmlText(error.message || error)}</div>`;
+  }
+}
+
+window.renderBessView = renderBessView;
+
 /* ============================================================
    MÓDULO RECURSO SOLAR (TMY)
    ------------------------------------------------------------
@@ -1861,6 +2649,10 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
 
     if (viewName === "clipping") {
       window.renderClippingView?.();
+    }
+
+    if (viewName === "bess") {
+      window.renderBessView?.();
     }
 
     if (viewName === "reportes") {
@@ -4128,6 +4920,13 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     return state.meteoNasaBundle;
   }
 
+  async function getBessScenarioAForReport() {
+    if (typeof window.getScenarioData !== "function") {
+      throw new Error("Loader de escenarios no disponible");
+    }
+    return window.getScenarioData("A");
+  }
+
   function rowsForCase(rows, mode) {
     const meta = SOURCE_META[mode];
     return (Array.isArray(rows) ? rows : []).filter((row) => meta.pattern.test(`${row.caso_sam || ""} ${row.nombre_caso || ""} ${row.fuente_meteorologica || ""}`));
@@ -4839,9 +5638,147 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     return parts.join("");
   }
 
+  function selectBessRepresentativeWeek(records) {
+    const byDate = new Map();
+    (Array.isArray(records) ? records : []).forEach((row) => {
+      const date = normalizeDate(row.timestamp);
+      if (!date) return;
+      if (!byDate.has(date)) byDate.set(date, []);
+      byDate.get(date).push(row);
+    });
+    const dates = Array.from(byDate.keys()).sort();
+    let best = { dates: dates.slice(0, 7), sumCurt: -Infinity };
+    const dayMs = 24 * 60 * 60 * 1000;
+    for (let i = 0; i <= dates.length - 7; i += 1) {
+      const windowDates = dates.slice(i, i + 7);
+      const first = new Date(`${windowDates[0]}T00:00:00`).getTime();
+      const consecutive = windowDates.every((date, index) => {
+        const current = new Date(`${date}T00:00:00`).getTime();
+        return Number.isFinite(current) && current - first === index * dayMs;
+      });
+      if (!consecutive) continue;
+      const sumCurt = windowDates.reduce((acc, date) => acc + sum(byDate.get(date) || [], "P_curt_MW"), 0);
+      if (sumCurt > best.sumCurt) best = { dates: windowDates, sumCurt };
+    }
+    const selected = new Set(best.dates || []);
+    const rows = (Array.isArray(records) ? records : [])
+      .filter((row) => selected.has(normalizeDate(row.timestamp)))
+      .sort((a, b) => getTimestampTime(a.timestamp) - getTimestampTime(b.timestamp));
+    return {
+      dates: best.dates || [],
+      rows,
+      label: best.dates?.length ? `${best.dates[0]} a ${best.dates[best.dates.length - 1]}` : "Sin ventana disponible",
+      sumCurt: best.sumCurt,
+    };
+  }
+
+  function reportBessKpiRows(bundle) {
+    const k = bundle?.kpis?.kpis || {};
+    return [
+      ["Curtailment total", formatGwh(k.E_curt_total_MWh), "Disponibilidad CEN reducida"],
+      ["Energía capturada", formatGwh(k.E_capturada_MWh), "Carga exclusiva desde curtailment"],
+      ["Tasa de captura", `${formatNumberEs(k.tasa_captura_pct, 2)} %`, "Capturado / curtailment"],
+      ["Energía descargada", formatGwh(k.E_descargada_MWh), "Valorización ex post"],
+      ["Energía no capturada", formatGwh(k.E_no_capturada_MWh), "Diferencia disponibilidad - captura"],
+      ["Throughput", formatGwh(k.throughput_AC_MWh), "Carga + descarga AC"],
+      ["EFC", formatNumberEs(k.EFC_desc, 2), "Por descarga"],
+      ["Pérdidas", formatGwh(k.perdidas_totales_MWh), "Carga + descarga"],
+      ["Ingreso bruto", formatUsdMillion(k.Ingreso_bruto_USD), "USD"],
+      ["Ingreso ajustado", formatUsdMillion(k.Ingreso_ajustado_USD), "USD"],
+      ["SOC final", `${formatNumberEs(k.SOC_final_pct, 1)} %`, "Cierre anual"],
+    ];
+  }
+
+  function buildBessReportBlock(bundleOrError) {
+    if (!bundleOrError || bundleOrError.error) {
+      const message = bundleOrError?.error?.message || "Escenario A no disponible";
+      return `
+        <p class="sa-report-note"><b>No se pudo cargar el Escenario A BESS:</b> ${escapeHtml(message)}. No se sustituyen valores con datos hardcodeados.</p>
+      `;
+    }
+    const bundle = bundleOrError;
+    const k = bundle.kpis.kpis || {};
+    const p = bundle.kpis.parameters || {};
+    const verification = bundle.kpis.verification || {};
+    const checks = verification.checks || {};
+    const week = selectBessRepresentativeWeek(bundle.hourly.records || []);
+    const paramRows = [
+      ["E_nom", `${formatNumberEs(p.E_nom_MWh, 0)} MWh`, "Parámetro del caso base"],
+      ["P_c,max", `${formatNumberEs(p.P_c_max_MW, 1)} MW`, "Restricción de potencia"],
+      ["P_d,max", `${formatNumberEs(p.P_d_max_MW, 1)} MW`, "Restricción de potencia"],
+      ["RTE", formatPercentFromRatio(p.eta_rt, 1), "Eficiencia ida-vuelta"],
+      ["eta_c", formatPercentFromRatio(p.eta_c, 2), "Eficiencia de carga"],
+      ["eta_d", formatPercentFromRatio(p.eta_d, 2), "Eficiencia de descarga"],
+      ["SOC min", formatPercentFromRatio(p.SOC_min, 1), "Restricción energética"],
+      ["SOC max", formatPercentFromRatio(p.SOC_max, 1), "Restricción energética"],
+      ["SOC inicial", formatPercentFromRatio(p.SOC_0, 1), "Condición inicial"],
+      ["POI max", `${formatNumberEs(p.P_POI_max_MW, 0)} MW`, "Restricción operacional adoptada"],
+      ["Resolución", `${formatNumberEs(p.dt_h, 0)} h`, "Discretización temporal"],
+    ];
+    const verificationRows = [
+      ["Estado general", verification.aprobado === true ? "APROBADA" : "REVISAR"],
+      ...Object.entries(checks).map(([key, ok]) => [checkLabel(key), ok ? "OK" : "Revisar"]),
+      ["Residuo máximo balance", `${formatNumberEs(verification.residuo_balance_max_abs_MWh, 14)} MWh`],
+    ];
+    const quarterlyRows = (bundle.quarterly.records || []).map((row) => [
+      escapeHtml(row.periodo),
+      formatGwh(row.E_curt_MWh),
+      formatGwh(row.E_capt_MWh),
+      `${formatNumberEs(row.tasa_captura_pct, 2)} %`,
+      formatGwh(row.E_desc_MWh),
+      formatGwh(row.throughput_AC_MWh),
+      formatNumberEs(row.EFC_desc, 2),
+      formatUsdMillion(row.Ingreso_bruto_USD),
+    ]);
+
+    return `
+      ${reportSubheading("6.1 Definición metodológica")}
+      <p>El Escenario A representa una política reactiva de recuperación energética prioritaria. La carga se realiza exclusivamente desde reducciones CEN. Cuando existe carga admisible el BESS carga; cuando no existe carga admisible descarga la máxima potencia físicamente permitida para liberar capacidad. El precio marginal se utiliza únicamente para valorización ex post.</p>
+      <div class="sa-report-flow">CARGAR -> VACIAR -> CREAR ESPACIO -> VOLVER A CARGAR</div>
+      ${reportSubheading("Tabla BESS-1 - Parámetros del caso base")}
+      ${table(["Parámetro", "Valor", "Naturaleza"], paramRows.map((row) => row.map((cell) => escapeHtml(cell))), "bess-params")}
+      ${reportSubheading("KPIs del Escenario A")}
+      ${kpiRow(reportBessKpiRows(bundle).slice(0, 6).map(([title, value, unit], index) => [title, value, unit, index === 2 ? "green" : ""]), 6)}
+      ${kpiRow(reportBessKpiRows(bundle).slice(6).map(([title, value, unit], index) => [title, value, unit, index === 2 ? "orange" : ""]), 5)}
+      <p class="sa-report-figure-title">G12 - Curtailment CEN vs energía capturada por mes</p>
+      <div class="sa-report-chart"><canvas id="saReportG12"></canvas></div>
+      <p class="sa-report-figure-title">G13 - Tasa mensual de captura [%]</p>
+      <div class="sa-report-chart"><canvas id="saReportG13"></canvas></div>
+      <p class="sa-report-figure-title">G14 - Operación BESS en una semana representativa (${escapeHtml(week.label)})</p>
+      <div class="sa-report-chart tall"><canvas id="saReportG14"></canvas></div>
+      <p class="sa-report-figure-title">G15 - SOC horario de la semana representativa</p>
+      <div class="sa-report-chart"><canvas id="saReportG15"></canvas></div>
+      <p class="sa-report-figure-title">G16 - Resultado trimestral de recuperación</p>
+      <div class="sa-report-chart"><canvas id="saReportG16"></canvas></div>
+      ${reportSubheading("Verificación computacional del Escenario A")}
+      ${table(["Control", "Resultado"], verificationRows.map((row) => row.map((cell) => escapeHtml(cell))), "bess-verification")}
+      ${reportSubheading("Resultados trimestrales")}
+      ${table(["Trimestre", "Curtailment", "Capturado", "% captura", "Descargado", "Throughput", "EFC", "Ingreso bruto"], quarterlyRows, "bess-quarterly")}
+      ${reportSubheading("Interpretación técnica")}
+      <p>A recupera ${formatNumberEs(k.tasa_captura_pct, 2)} % de las reducciones CEN, equivalentes a ${formatGwh(k.E_capturada_MWh)} capturados sobre ${formatGwh(k.E_curt_total_MWh)} disponibles. La energía no capturada es ${formatGwh(k.E_no_capturada_MWh)} y corresponde a la diferencia entre disponibilidad y captura bajo las restricciones horarias del caso. A es deliberadamente ciego al precio; el ingreso bruto de ${formatUsdMillion(k.Ingreso_bruto_USD)} es una valorización ex post y no el objetivo de despacho. Este resultado constituye una línea base para comparar posteriormente B, C, D y Benchmark M.</p>
+      ${reportSubheading("Limitaciones del Escenario A")}
+      <ul class="sa-report-list">
+        <li>Enfoque ex post y price-taker, con precios históricos exógenos.</li>
+        <li>Carga exclusivamente desde reducciones CEN.</li>
+        <li>Resolución temporal horaria y sin representación de secuencias intrahorarias.</li>
+        <li>POI = ${formatNumberEs(p.P_POI_max_MW, 0)} MW como restricción operacional adoptada.</li>
+        <li>P_FV histórico CEN no se recorta aunque existan ${formatNumberEs(k.horas_PFV_supera_POI ?? verification.horas_PFV_supera_380_MW, 0)} horas mayores a 380 MW.</li>
+        <li>Degradación, SOH final económico, costo de degradación, beneficio neto e IRV todavía no incorporados.</li>
+      </ul>
+    `;
+  }
+
+  function buildGlobalConclusionBlock() {
+    return `
+      <p>El bloque FV/CEN constituye la base histórica y operacional para contextualizar la disponibilidad energética 2025. Sobre esa base ya se implementó y verificó el Escenario A BESS, que funciona como línea base de recuperación energética prioritaria sin optimización económica.</p>
+      <p>El siguiente paso metodológico es comparar los Escenarios B, C, D y Benchmark M, y transferir las trayectorias operacionales resultantes al modelo de degradación para evaluar SOH, costo de degradación, beneficio neto e indicadores de recomendación final.</p>
+      <div class="sa-report-decision"><b>Estado actual:</b> FV/CEN consolidado y Escenario A verificado. No se anticipan conclusiones económicas finales hasta incorporar los escenarios restantes y degradación.</div>
+    `;
+  }
+
   function reportSection(num, title, body, className = "") {
     const autoClass = num === "1." ? "" : "sa-page-break";
-    const specialClass = num === "6." ? "sa-conclusion-section" : num === "A." ? "sa-annex-section" : "";
+    const specialClass = num === "7." ? "sa-conclusion-section" : num === "A." ? "sa-annex-section" : "";
     const classes = ["sa-report-section", autoClass, specialClass, className].filter(Boolean).join(" ");
     return `<section class="${classes}"><h2><span>${num}</span>${title}</h2><div class="sa-section-body">${body}</div></section>`;
   }
@@ -4862,7 +5799,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
   }
   function findMetric(metrics, regex) { return (metrics || []).find((r) => regex.test(r.comparacion || "")) || {}; }
 
-  function buildReportHtml(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles) {
+  function buildReportHtml(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles, bessScenario) {
     const k = validation.kpis || {};
     const mensual = validation.mensual || [];
     const metricas = validation.metricas || [];
@@ -5019,12 +5956,14 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         fmt(r.corr_pearson, 2),
       ]))}
     `;
+    const block6 = buildBessReportBlock(bessScenario);
+    const block7 = buildGlobalConclusionBlock();
 
     return `
       <div class="sa-report-doc" id="saReportDoc">
         <header class="sa-report-main-title">
-          <h1>Reporte Técnico Planta FV</h1>
-          <h3>Fuente reproducible de tablas, gráficos y KPI del Capítulo 3 — Modelación fotovoltaica de Planta FV</h3>
+          <h1>Reporte Técnico - Modelación FV, contraste CEN y operación BESS</h1>
+          <h3>Planta FV + BESS | Caso 2025</h3>
           <div class="sa-report-line"></div>
         </header>
         ${reportSection("1.", "Arquitectura y configuración Planta FV", block1)}
@@ -5032,11 +5971,13 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         ${reportSection("3.", "Resultado de generación SAM", block3)}
         ${reportSection("4.", "Contraste SAM – CEN", block4)}
         ${reportSection("5.", "Balance energético y KPI estadísticos", block5)}
+        ${reportSection("6.", "Operación horaria del BESS - Escenario A", block6)}
+        ${reportSection("7.", "Conclusión global", block7)}
         <footer class="sa-report-footer">Storage Analytics · Planta FV + BESS</footer>
       </div>`;
   }
 
-  function renderReportCharts(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles) {
+  function renderReportCharts(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles, bessScenario) {
     destroyCharts(state.reportCharts);
     if (typeof Chart === "undefined") return;
     const colors = { teal: "#22c7ad", cyan: "#38bdf8", navy: "#1f4773", gold: "#f6c64a", purple: "#9b59b6", red: "#e83f52", orange: "#f59e0b", green: "#2dd4bf" };
@@ -5224,6 +6165,90 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
         plugins: [whiteCanvasPlugin("g11WhiteBg"), valueLabelPlugin("g11Labels")],
       });
     }
+
+    if (bessScenario && !bessScenario.error) {
+      const monthly = bessScenario.monthly.records || [];
+      const quarterly = bessScenario.quarterly.records || [];
+      const week = selectBessRepresentativeWeek(bessScenario.hourly.records || []);
+      const weekRows = week.rows || [];
+      const toGwh = (value) => (n(value) || 0) / 1000;
+      const monthLabels = monthly.map((r) => monthShortFromPeriod(r.periodo));
+      const weekLabels = weekRows.map((r) => `${normalizeDate(r.timestamp).slice(5)} ${String(r.timestamp).slice(11, 16)}`);
+
+      const g12Canvas = byId("saReportG12");
+      if (g12Canvas) state.reportCharts.g12 = new Chart(g12Canvas, {
+        type: "bar",
+        data: {
+          labels: monthLabels,
+          datasets: [
+            barDs("Curtailment CEN", monthly.map((r) => toGwh(r.E_curt_MWh)), colors.orange),
+            barDs("Energía capturada", monthly.map((r) => toGwh(r.E_capt_MWh)), colors.teal),
+          ],
+        },
+        options: whiteChartOptions({ scales: { x: whiteAxisX(), y: whiteAxisY("GWh/mes") } }),
+        plugins: [whiteCanvasPlugin("g12WhiteBg")],
+      });
+
+      const g13Canvas = byId("saReportG13");
+      if (g13Canvas) state.reportCharts.g13 = new Chart(g13Canvas, {
+        type: "line",
+        data: { labels: monthLabels, datasets: [{ ...lineDs("Tasa de captura", monthly.map((r) => r.tasa_captura_pct), colors.navy), borderWidth: 3 }] },
+        options: whiteChartOptions({ scales: { x: whiteAxisX(), y: whiteAxisY("%", { min: 0, max: 105 }) } }),
+        plugins: [whiteCanvasPlugin("g13WhiteBg"), valueLabelPlugin("g13Labels", (v) => fmt(v, 1))],
+      });
+
+      const g14Canvas = byId("saReportG14");
+      if (g14Canvas) state.reportCharts.g14 = new Chart(g14Canvas, {
+        type: "line",
+        data: {
+          labels: weekLabels,
+          datasets: [
+            lineDs("P_curt", weekRows.map((r) => r.P_curt_MW), colors.orange),
+            { ...lineDs("P_c", weekRows.map((r) => r.P_c_MW), colors.cyan), borderDash: [5, 4] },
+            { ...lineDs("P_d", weekRows.map((r) => r.P_d_MW), colors.gold), borderWidth: 2.8 },
+            { ...lineDs("P_FV", weekRows.map((r) => r.P_FV_MW), colors.teal), borderWidth: 2.4 },
+          ],
+        },
+        options: whiteChartOptions({ scales: {
+          x: whiteAxisX({ maxTicksLimit: 9 }),
+          y: whiteAxisY("MW"),
+        } }),
+        plugins: [whiteCanvasPlugin("g14WhiteBg")],
+      });
+
+      const g15Canvas = byId("saReportG15");
+      if (g15Canvas) state.reportCharts.g15 = new Chart(g15Canvas, {
+        type: "line",
+        data: {
+          labels: weekLabels,
+          datasets: [
+            { ...lineDs("SOC", weekRows.map((r) => r.SOC_fin_pct), colors.navy), borderWidth: 2.8 },
+            { ...lineDs("SOC min 10%", weekRows.map(() => 10), colors.red), borderDash: [5, 5], pointRadius: 0 },
+            { ...lineDs("SOC max 90%", weekRows.map(() => 90), colors.red), borderDash: [5, 5], pointRadius: 0 },
+          ],
+        },
+        options: whiteChartOptions({ scales: {
+          x: whiteAxisX({ maxTicksLimit: 9 }),
+          y: whiteAxisY("%", { min: 0, max: 100 }),
+        } }),
+        plugins: [whiteCanvasPlugin("g15WhiteBg")],
+      });
+
+      const g16Canvas = byId("saReportG16");
+      if (g16Canvas) state.reportCharts.g16 = new Chart(g16Canvas, {
+        type: "bar",
+        data: {
+          labels: quarterly.map((r) => r.periodo),
+          datasets: [
+            barDs("Curtailment", quarterly.map((r) => toGwh(r.E_curt_MWh)), colors.orange),
+            barDs("Capturado", quarterly.map((r) => toGwh(r.E_capt_MWh)), colors.teal),
+            barDs("No capturado", quarterly.map((r) => toGwh(r.E_no_capt_MWh)), colors.red),
+          ],
+        },
+        options: whiteChartOptions({ scales: { x: whiteAxisX(), y: whiteAxisY("GWh/trimestre") } }),
+        plugins: [whiteCanvasPlugin("g16WhiteBg"), valueLabelPlugin("g16Labels")],
+      });
+    }
   }
 
   function installReportStyles() {
@@ -5239,7 +6264,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       .pdf-export-mode .pdf-hide{display:none!important}
       .pdf-header,.pdf-footer,.pdf-section,.pdf-table,.pdf-kpi-grid{break-inside:avoid;page-break-inside:avoid}
       .sa-report-doc{
-        width:1040px;
+        width:100%;
         max-width:1040px;
         padding:22px 26px;
         background:#fff;
@@ -5422,6 +6447,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       .sa-report-kpi-row .sa-report-kpi p{font-size:9px}
       .sa-report-kpi-row .sa-report-kpi strong{font-size:19px}
       .sa-report-kpi-row .sa-report-kpi small{font-size:9px;margin-top:3px}
+      .sa-report-flow{margin:10px 0 14px;padding:12px 14px;border:1px solid #b9d8d2;border-radius:6px;background:#eaf7f3;color:#0f5f55;font-weight:900;text-align:center;letter-spacing:.04em}
       .sa-report-two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;break-inside:avoid;page-break-inside:avoid}
       .sa-stat-row{display:flex;gap:10px;margin:8px 0;break-inside:avoid;page-break-inside:avoid}
       .sa-stat-tile{flex:1;background:#f3f6fa;border-radius:5px;padding:10px 12px;text-align:center}
@@ -5433,6 +6459,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       .sa-pdf-export-doc .sa-report-kpi-row{gap:6px}
       .sa-pdf-export-doc .sa-report-kpi-row .sa-report-kpi strong{font-size:15px}
       .sa-pdf-export-doc .sa-report-kpi-row .sa-report-kpi p{font-size:7.6px}
+      .sa-pdf-export-doc .sa-report-flow{font-size:10px;padding:8px 10px;margin:7px 0 9px}
       .sa-pdf-export-doc .sa-stat-tile strong{font-size:14px}
       .sa-pdf-export-doc .sa-report-two-col{gap:10px}
       .sa-pdf-export-doc .sa-report-chart.tall{height:220px}
@@ -5661,7 +6688,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
       }
       unitHost.remove();
       // jsPDF crea una pagina inicial vacia; si no se uso, ya fue ocupada por la primera imagen.
-      pdf.save(filename || "reporte_resultados_planta_fv.pdf");
+      pdf.save(filename || "reporte_resultados_fv_bess.pdf");
     } finally {
       if (cloned.host?.parentNode) cloned.host.parentNode.removeChild(cloned.host);
     }
@@ -5672,19 +6699,23 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
     const content = byId("reportContent") || byId("view-reportes");
     if (!content) return;
     setText("reportPdfStatus", "Cargando JSON...");
-    const [validation, profile, scadaRows, architectureBundle, meteoBundle] = await Promise.all([
+    const [validation, profile, scadaRows, architectureBundle, meteoBundle, bessScenario] = await Promise.all([
       getValidationBundle(),
       getProfileBundle(),
       getScadaRows(),
       getArchitectureBundle(),
       getMeteoNasaBundle(),
+      getBessScenarioAForReport().catch((error) => {
+        console.error("No se pudo cargar Escenario A para reporte:", error);
+        return { error };
+      }),
     ]);
     const dailySeries = groupByDaySamCen(scadaRows, /nasa|2025/i);
     const hourlyProfile = groupBySamCenHour(scadaRows, /nasa|2025/i);
     const seasonalProfiles = groupBySeasonHour(scadaRows, /nasa|2025/i);
-    content.innerHTML = buildReportHtml(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles);
+    content.innerHTML = buildReportHtml(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles, bessScenario);
     setText("reportPdfStatus", "Reporte cargado desde JSON");
-    setTimeout(() => renderReportCharts(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles), 100);
+    setTimeout(() => renderReportCharts(validation, architectureBundle, meteoBundle, profile, dailySeries, hourlyProfile, seasonalProfiles, bessScenario), 100);
     const button = byId("exportReportPdfBtn");
     if (button && button.dataset.saReportExportBound !== "true") {
       button.dataset.saReportExportBound = "true";
@@ -5698,7 +6729,7 @@ function avg(rows,k){ return rows.length ? sum(rows,k)/rows.length : 0; }
           if (!sourceDoc) throw new Error("No se encontro el contenido del reporte.");
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           setText("reportPdfStatus", "Generando PDF...");
-          await exportReportPdfReliable(sourceDoc, "reporte_resultados_planta_fv.pdf");
+          await exportReportPdfReliable(sourceDoc, "reporte_resultados_fv_bess.pdf");
           setText("reportPdfStatus", "PDF descargado");
         } catch (error) {
           console.error("No se pudo generar el PDF del reporte", error);
